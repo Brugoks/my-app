@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bible Adventure Quest</title>
+<style>
+body{
+  margin:0;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(#87CEEB,#fef9d7);
+  text-align:center;
+}
+h1{margin:10px;color:#2b3a67;}
+#scene{
+  width:100%;
+  height:300px;
+  background:#ccefff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:all .5s ease;
+}
+svg{max-height:280px;}
+#questionBox{
+  padding:15px;
+  background:white;
+  margin:10px;
+  border-radius:15px;
+  box-shadow:0 4px 10px rgba(0,0,0,.2);
+}
+button{
+  padding:12px;
+  margin:8px;
+  border:none;
+  border-radius:10px;
+  font-size:16px;
+  cursor:pointer;
+}
+.answer{background:#ffd966;}
+.answer:hover{background:#ffcc00;}
+#reward{
+  font-size:22px;
+  margin:10px;
+  color:green;
+}
+#stars{font-size:18px;}
+</style>
+</head>
+<body>
+
+<h1>Bible Adventure Quest 🌟</h1>
+<div id="stars">Stars: 0</div>
+
+<div id="scene"></div>
+
+<div id="questionBox">
+  <div id="question"></div>
+  <div id="answers"></div>
+</div>
+
+<div id="reward"></div>
+
+<audio id="correctSound">
+<source src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=" type="audio/wav">
+</audio>
+
+<script>
+let stars=0;
+const scene=document.getElementById("scene");
+const questionEl=document.getElementById("question");
+const answersEl=document.getElementById("answers");
+const reward=document.getElementById("reward");
+const correctSound=document.getElementById("correctSound");
+
+const questions=[
+{
+q:"What did Noah build?",
+scene:arkScene(),
+answers:[
+{t:"An Ark",c:true},
+{t:"A Castle",c:false},
+{t:"A Rocket",c:false}
+]
+},
+{
+q:"Who did David defeat?",
+scene:davidScene(),
+answers:[
+{t:"Goliath",c:true},
+{t:"A Dragon",c:false},
+{t:"A Whale",c:false}
+]
+},
+{
+q:"What did Moses part?",
+scene:redSeaScene(),
+answers:[
+{t:"The Red Sea",c:true},
+{t:"The Desert",c:false},
+{t:"The Sky",c:false}
+]
+}
+];
+
+let current=0;
+
+function loadQuestion(){
+reward.textContent="";
+const q=questions[current];
+scene.innerHTML=q.scene;
+questionEl.textContent=q.q;
+answersEl.innerHTML="";
+q.answers.forEach(a=>{
+const btn=document.createElement("button");
+btn.textContent=a.t;
+btn.className="answer";
+btn.onclick=()=>checkAnswer(a.c);
+answersEl.appendChild(btn);
+});
+}
+
+function checkAnswer(correct){
+if(correct){
+stars++;
+document.getElementById("stars").textContent="Stars: "+stars;
+reward.textContent="✨ Great Job! You earned a star!";
+correctSound.play();
+scene.style.transform="scale(1.05)";
+setTimeout(()=>scene.style.transform="scale(1)",300);
+}else{
+reward.textContent="Try again!";
+}
+}
+
+function arkScene(){
+return `
+<svg viewBox="0 0 400 200">
+<rect width="400" height="200" fill="#87CEEB"/>
+<rect y="150" width="400" height="50" fill="#3399ff"/>
+<ellipse cx="200" cy="140" rx="80" ry="30" fill="#8B4513"/>
+<text x="170" y="130" font-size="20">🦒 🐘</text>
+</svg>`;
+}
+
+function davidScene(){
+return `
+<svg viewBox="0 0 400 200">
+<rect width="400" height="200" fill="#a2d149"/>
+<text x="150" y="120" font-size="40">🧍‍♂️ 🪨 👹</text>
+</svg>`;
+}
+
+function redSeaScene(){
+return `
+<svg viewBox="0 0 400 200">
+<rect width="400" height="200" fill="#87CEEB"/>
+<rect x="0" y="80" width="150" height="120" fill="#3399ff"/>
+<rect x="250" y="80" width="150" height="120" fill="#3399ff"/>
+<text x="170" y="140" font-size="30">🚶‍♂️</text>
+</svg>`;
+}
+
+loadQuestion();
+</script>
+
+</body>
+</html>
