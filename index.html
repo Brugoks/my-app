@@ -1,333 +1,559 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pares-Pares: Filipino Memory Game</title>
-    <style>
-        :root {
-            /* Filipino Tropical Theme Colors */
-            --bg-color: #fdf6e3; /* Creamy background */
-            --card-back: #0038a8; /* Philippines Flag Blue */
-            --card-front: #ffffff;
-            --accent-yellow: #fcd116; /* Philippines Flag Yellow */
-            --accent-red: #ce1126; /* Philippines Flag Red */
-            --text-color: #333;
-        }
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Monster Match!</title>
+<style>
+  :root{
+    --bg1:#0b0f2a; --bg2:#1a0b3a; --neon:#7cf8ff; --neon2:#ff7cf8;
+    --card:#12183b; --card2:#1d2558; --good:#43ffa8; --bad:#ff5c7a;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  body{
+    margin:0; font-family: ui-rounded, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    color:#eaf6ff;
+    background: radial-gradient(1200px 700px at 20% 20%, rgba(124,248,255,.18), transparent 50%),
+                radial-gradient(900px 600px at 80% 30%, rgba(255,124,248,.16), transparent 55%),
+                linear-gradient(160deg,var(--bg1),var(--bg2));
+    overflow-x:hidden;
+  }
+  header{
+    padding:14px 14px 10px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px;
+  }
+  .logo{
+    width:42px; height:42px; border-radius:14px;
+    background: radial-gradient(circle at 30% 30%, #fff, rgba(255,255,255,.15) 35%, rgba(124,248,255,.25) 55%, rgba(255,124,248,.18) 75%),
+                linear-gradient(135deg, rgba(124,248,255,.35), rgba(255,124,248,.35));
+    box-shadow: 0 0 18px rgba(124,248,255,.25), 0 0 22px rgba(255,124,248,.18);
+    position:relative;
+  }
+  .logo:after{
+    content:"♪"; position:absolute; inset:0; display:grid; place-items:center;
+    font-weight:900; color:#07102b; text-shadow:0 1px 0 rgba(255,255,255,.35);
+    font-size:22px;
+  }
+  h1{margin:0; font-size:18px; letter-spacing:.5px;}
+  .hud{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  .pill{
+    padding:8px 10px; border-radius:999px;
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(124,248,255,.18);
+    box-shadow: inset 0 0 0 1px rgba(255,124,248,.08);
+    font-size:13px;
+  }
+  .btn{
+    padding:10px 12px; border-radius:14px; border:0; color:#07102b;
+    background: linear-gradient(135deg, var(--neon), var(--neon2));
+    box-shadow: 0 10px 25px rgba(0,0,0,.25), 0 0 22px rgba(124,248,255,.18);
+    font-weight:800; cursor:pointer;
+  }
+  .btn.secondary{
+    background: rgba(255,255,255,.08); color:#eaf6ff; border:1px solid rgba(255,255,255,.12);
+    box-shadow:none;
+  }
+  .wrap{max-width:980px; margin:0 auto; padding:0 14px 20px;}
+  .panel{
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius:18px;
+    padding:12px;
+    box-shadow: 0 12px 30px rgba(0,0,0,.25);
+  }
+  .grid{
+    display:grid; gap:10px; padding:8px;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+  }
+  @media (min-width:560px){ .grid{grid-template-columns: repeat(5, minmax(0,1fr));} }
+  @media (min-width:820px){ .grid{grid-template-columns: repeat(6, minmax(0,1fr));} }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            /* Subtle woven mat pattern effect */
-            background-image: linear-gradient(45deg, #f0ead6 25%, transparent 25%, transparent 75%, #f0ead6 75%, #f0ead6), 
-                              linear-gradient(45deg, #f0ead6 25%, transparent 25%, transparent 75%, #f0ead6 75%, #f0ead6);
-            background-size: 20px 20px;
-            background-position: 0 0, 10px 10px;
-            
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-        }
+  .card{
+    position:relative;
+    aspect-ratio: 3 / 4;
+    border-radius:16px;
+    perspective: 900px;
+    user-select:none;
+  }
+  .inner{
+    position:absolute; inset:0;
+    transform-style:preserve-3d;
+    transition: transform 260ms cubic-bezier(.2,.8,.2,1);
+  }
+  .card.flipped .inner{ transform: rotateY(180deg); }
+  .face{
+    position:absolute; inset:0;
+    border-radius:16px;
+    backface-visibility:hidden;
+    display:grid; place-items:center;
+    overflow:hidden;
+  }
+  .front{
+    background: linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,.03));
+    border: 1px solid rgba(124,248,255,.22);
+    box-shadow: inset 0 0 0 1px rgba(255,124,248,.10);
+  }
+  .front:before{
+    content:"";
+    position:absolute; inset:-40%;
+    background: radial-gradient(circle at 30% 30%, rgba(124,248,255,.25), transparent 60%),
+                radial-gradient(circle at 70% 60%, rgba(255,124,248,.20), transparent 55%);
+    transform: rotate(20deg);
+  }
+  .front .q{
+    position:relative;
+    width:70%; height:70%;
+    border-radius:999px;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.30), rgba(255,255,255,.05));
+    display:grid; place-items:center;
+    border: 1px solid rgba(255,255,255,.10);
+  }
+  .front .q span{ font-size:34px; font-weight:900; color:#eaf6ff; text-shadow:0 2px 0 rgba(0,0,0,.25); }
+  .back{
+    transform: rotateY(180deg);
+    background: linear-gradient(160deg, var(--card), var(--card2));
+    border: 1px solid rgba(255,255,255,.10);
+    box-shadow: 0 10px 20px rgba(0,0,0,.18);
+  }
+  .monster{
+    width:86%; height:86%;
+    border-radius:18px;
+    position:relative;
+    display:grid; place-items:center;
+    overflow:hidden;
+  }
+  .monster .emoji{ font-size:36px; z-index:3; filter: drop-shadow(0 6px 0 rgba(0,0,0,.25)); }
+  .monster .name{
+    position:absolute; bottom:8px; left:8px; right:8px;
+    font-size:11px; text-align:center; opacity:.9; z-index:3;
+    letter-spacing:.3px;
+  }
+  .glow{
+    position:absolute; inset:-30%;
+    background: radial-gradient(circle at 30% 30%, rgba(124,248,255,.28), transparent 55%),
+                radial-gradient(circle at 70% 60%, rgba(255,124,248,.22), transparent 55%);
+    transform: rotate(18deg);
+    z-index:1;
+  }
+  .bubbles{
+    position:absolute; inset:0; z-index:2; opacity:.7;
+    background:
+      radial-gradient(circle at 15% 25%, rgba(255,255,255,.18), transparent 30%),
+      radial-gradient(circle at 70% 30%, rgba(255,255,255,.14), transparent 28%),
+      radial-gradient(circle at 40% 70%, rgba(255,255,255,.12), transparent 30%),
+      radial-gradient(circle at 80% 75%, rgba(255,255,255,.10), transparent 28%);
+  }
 
-        h1 {
-            color: var(--accent-red);
-            margin-bottom: 10px;
-            text-align: center;
-            font-size: 1.8rem;
-        }
+  .card.matched{
+    pointer-events:none;
+    animation: pop 420ms cubic-bezier(.2,.9,.2,1);
+  }
+  @keyframes pop{
+    0%{ transform: scale(1); }
+    35%{ transform: scale(1.06); }
+    100%{ transform: scale(1); }
+  }
+  .card.wiggle{ animation: wiggle 300ms ease-in-out; }
+  @keyframes wiggle{
+    0%,100%{ transform: rotate(0deg); }
+    25%{ transform: rotate(-2deg); }
+    50%{ transform: rotate(2deg); }
+    75%{ transform: rotate(-1deg); }
+  }
 
-        .scoreboard {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 20px;
-            font-weight: bold;
-            color: var(--text-color);
-            background: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-
-        /* The Grid Container */
-        .game-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            max-width: 400px;
-            width: 100%;
-            perspective: 1000px; /* Essential for 3D flip effect */
-        }
-
-        /* The Card Container */
-        .card {
-            aspect-ratio: 1 / 1; /* Makes them perfectly square */
-            position: relative;
-            transform-style: preserve-3d;
-            transition: transform 0.5s;
-            cursor: pointer;
-            border-radius: 12px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-
-        /* State: Card is flipped */
-        .card.flipped {
-            transform: rotateY(180deg);
-        }
-
-        /* State: Card is matched */
-        .card.matched {
-             pointer-events: none; /* Cannot click matched cards */
-        }
-        
-        /* Common styles for front and back face */
-        .card-face {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            backface-visibility: hidden; /* Hides the back when turned */
-            border-radius: 12px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 3rem;
-            border: 2px solid #eee;
-        }
-
-        /* The design on the back of the card (facing up initially) */
-        .card-back {
-            background-color: var(--card-back);
-            color: var(--accent-yellow);
-            transform: rotateY(0deg);
-            /* A simple sun icon for the back design */
-            font-size: 2rem; 
-        }
-        .card-back::after {
-            content: "☀️"; /* Sun icon */
-        }
-
-        /* The design on the front (revealed) face */
-        .card-front {
-            background-color: var(--card-front);
-            transform: rotateY(180deg);
-        }
-
-        /* Victory Message Area */
-        #victory-message {
-            display: none; /* Hidden by default */
-            flex-direction: column;
-            align-items: center;
-            margin-top: 20px;
-            background: white;
-            padding: 20px;
-            border-radius: 15px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-            animation: popIn 0.5s ease-out;
-        }
-
-        #victory-message h2 {
-            color: var(--accent-blue);
-            margin: 0 0 10px 0;
-        }
-
-        .restart-btn {
-            background-color: var(--accent-red);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 25px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 15px;
-            transition: background-color 0.2s;
-        }
-        .restart-btn:hover {
-            background-color: #a30e1e;
-        }
-
-        @keyframes popIn {
-            from { transform: scale(0.8); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
-
-    </style>
+  .overlay{
+    position:fixed; inset:0; display:none; place-items:center; padding:18px;
+    background: rgba(0,0,0,.45);
+  }
+  .overlay.show{ display:grid; }
+  .modal{
+    width:min(560px, 100%);
+    border-radius:22px;
+    padding:16px;
+    background: linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+    border:1px solid rgba(255,255,255,.12);
+    box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  }
+  .modal h2{ margin:0 0 8px; font-size:18px; }
+  .modal p{ margin:0 0 12px; opacity:.92; line-height:1.35; }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; }
+  .confetti{
+    position:fixed; inset:0; pointer-events:none;
+    overflow:hidden;
+  }
+  .spark{
+    position:absolute; width:8px; height:8px; border-radius:2px;
+    background: white;
+    transform: translate(-50%,-50%);
+    opacity:.9;
+  }
+</style>
 </head>
 <body>
-
-    <h1>🇵🇭 Pares-Pares 🇵🇭</h1>
-    
-    <div class="scoreboard">
-        <div>Moves: <span id="moves-count">0</span></div>
-        <div>Matches: <span id="matches-count">0</span>/8</div>
+<header class="wrap">
+  <div class="brand">
+    <div class="logo"></div>
+    <div>
+      <h1>Monster Match</h1>
+      <div style="font-size:12px;opacity:.85">Tap two cards to find a matching singing monster!</div>
     </div>
+  </div>
+  <div class="hud">
+    <div class="pill">Stage: <b id="stage">1</b></div>
+    <div class="pill">Matches: <b id="matches">0</b>/<span id="totalPairs">0</span></div>
+    <div class="pill">Tries: <b id="tries">0</b></div>
+    <button class="btn secondary" id="muteBtn">Sound: ON</button>
+    <button class="btn" id="newBtn">New Game</button>
+  </div>
+</header>
 
-    <div class="game-grid" id="gameGrid">
+<div class="wrap">
+  <div class="panel">
+    <div class="grid" id="grid"></div>
+  </div>
+  <div style="margin-top:10px; opacity:.85; font-size:12px">
+    Tip: If your toddler gets stuck, tap <b>New Game</b> to reshuffle.
+  </div>
+</div>
+
+<div class="overlay show" id="overlay">
+  <div class="modal">
+    <h2>Tap “Start” to unlock music</h2>
+    <p>This game makes little musical sounds when monsters match. Start once, then play freely.</p>
+    <div class="row">
+      <button class="btn" id="startBtn">Start</button>
+      <button class="btn secondary" id="startSilentBtn">Start Silent</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="winOverlay">
+  <div class="modal">
+    <h2 id="winTitle">Stage Complete!</h2>
+    <p id="winText">Nice matching! Ready for the next stage?</p>
+    <div class="row">
+      <button class="btn" id="nextStageBtn">Next Stage</button>
+      <button class="btn secondary" id="replayBtn">Replay Stage</button>
+    </div>
+  </div>
+</div>
+
+<div class="confetti" id="confetti"></div>
+
+<script>
+(() => {
+  // --- Monsters (original, "singing monster" vibe) ---
+  const MONSTERS = [
+    { id:"Bloop",   emoji:"🫧", hue:190, note:0 },
+    { id:"Fwoof",   emoji:"🐾", hue:320, note:2 },
+    { id:"Zingy",   emoji:"⚡", hue:55,  note:4 },
+    { id:"Mushie",  emoji:"🍄", hue:120, note:5 },
+    { id:"Glim",    emoji:"✨", hue:285, note:7 },
+    { id:"Puffin",  emoji:"🌬️", hue:200, note:9 },
+    { id:"Bongo",   emoji:"🥁", hue:10,  note:11 },
+    { id:"Chime",   emoji:"🔔", hue:40,  note:12 },
+    { id:"Orbit",   emoji:"🪐", hue:240, note:14 },
+    { id:"Sprout",  emoji:"🌱", hue:100, note:16 },
+    { id:"Coral",   emoji:"🪸", hue:340, note:17 },
+    { id:"Pebble",  emoji:"🪨", hue:25,  note:19 },
+    { id:"Luna",    emoji:"🌙", hue:260, note:21 },
+    { id:"Sunny",   emoji:"🌞", hue:50,  note:23 }
+  ];
+
+  // --- Difficulty curve by stage ---
+  // More pairs, less "auto-peek" time
+  function stageConfig(stage){
+    const pairs = Math.min(4 + stage, 10);            // stage1=5 pairs (10 cards), stage6=10 pairs (20 cards)
+    const peekMs = Math.max(1200 - stage*120, 450);   // quick preview at start
+    const mismatchDelay = Math.max(650 - stage*40, 420);
+    return { pairs, peekMs, mismatchDelay };
+  }
+
+  // --- State ---
+  let stage = 1, tries = 0, matches = 0, totalPairs = 0;
+  let deck = [];
+  let first = null, second = null;
+  let busy = false;
+  let soundOn = true;
+
+  // --- Audio (WebAudio) ---
+  let ac = null;
+  function ensureAudio(){
+    if(!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  function beep(type, semitone=0, dur=0.12, vol=0.10){
+    if(!soundOn) return;
+    ensureAudio();
+    const t0 = ac.currentTime;
+    const o = ac.createOscillator();
+    const g = ac.createGain();
+    const base = 220; // A3-ish
+    const freq = base * Math.pow(2, semitone/12);
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+    o.connect(g).connect(ac.destination);
+    o.start(t0);
+    o.stop(t0+dur+0.02);
+  }
+  function sparkle(){
+    beep("triangle", 19, 0.08, 0.07);
+    beep("sine", 24, 0.10, 0.05);
+  }
+  function good(){
+    beep("sine", 12, 0.09, 0.08);
+    beep("triangle", 16, 0.10, 0.07);
+    beep("sine", 19, 0.11, 0.06);
+  }
+  function bad(){
+    beep("sawtooth", -5, 0.09, 0.05);
+    beep("square", -8, 0.10, 0.04);
+  }
+
+  // --- UI refs ---
+  const gridEl = document.getElementById("grid");
+  const stageEl = document.getElementById("stage");
+  const triesEl = document.getElementById("tries");
+  const matchesEl = document.getElementById("matches");
+  const totalPairsEl = document.getElementById("totalPairs");
+  const overlay = document.getElementById("overlay");
+  const winOverlay = document.getElementById("winOverlay");
+  const confettiEl = document.getElementById("confetti");
+
+  document.getElementById("newBtn").addEventListener("click", () => startGame(1, true));
+  document.getElementById("muteBtn").addEventListener("click", () => {
+    soundOn = !soundOn;
+    document.getElementById("muteBtn").textContent = "Sound: " + (soundOn ? "ON" : "OFF");
+    sparkle();
+  });
+
+  document.getElementById("startBtn").addEventListener("click", async () => {
+    ensureAudio();
+    if(ac.state === "suspended") await ac.resume();
+    overlay.classList.remove("show");
+    sparkle();
+    startGame(stage, true);
+  });
+  document.getElementById("startSilentBtn").addEventListener("click", () => {
+    soundOn = false;
+    document.getElementById("muteBtn").textContent = "Sound: OFF";
+    overlay.classList.remove("show");
+    startGame(stage, true);
+  });
+
+  document.getElementById("nextStageBtn").addEventListener("click", () => {
+    winOverlay.classList.remove("show");
+    stage++;
+    startGame(stage, true);
+  });
+  document.getElementById("replayBtn").addEventListener("click", () => {
+    winOverlay.classList.remove("show");
+    startGame(stage, true);
+  });
+
+  function shuffle(arr){
+    for(let i=arr.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [arr[i],arr[j]]=[arr[j],arr[i]];
+    }
+    return arr;
+  }
+
+  function pickMonsters(pairs){
+    const pool = shuffle([...MONSTERS]);
+    return pool.slice(0, pairs);
+  }
+
+  function buildDeck(stage){
+    const cfg = stageConfig(stage);
+    const chosen = pickMonsters(cfg.pairs);
+    const cards = [];
+    chosen.forEach((m) => {
+      cards.push({ ...m, key: m.id + "_a" });
+      cards.push({ ...m, key: m.id + "_b" });
+    });
+    shuffle(cards);
+    return { cards, cfg };
+  }
+
+  function cardHTML(card){
+    const bg = `linear-gradient(160deg, hsla(${card.hue},90%,60%,.22), rgba(255,255,255,.02))`;
+    return `
+      <div class="card" data-id="${card.id}" data-key="${card.key}">
+        <div class="inner">
+          <div class="face front">
+            <div class="q"><span>?</span></div>
+          </div>
+          <div class="face back">
+            <div class="monster" style="background:${bg}; border:1px solid hsla(${card.hue},90%,70%,.22)">
+              <div class="glow"></div>
+              <div class="bubbles"></div>
+              <div class="emoji">${card.emoji}</div>
+              <div class="name">${card.id}</div>
+            </div>
+          </div>
         </div>
+      </div>
+    `;
+  }
 
-    <div id="victory-message">
-        <h2>Mabuhay! You Won!</h2>
-        <p>You found all the Filipino pairs.</p>
-        <button class="restart-btn" onclick="restartGame()">Play Again</button>
-    </div>
+  function updateHUD(){
+    stageEl.textContent = stage;
+    triesEl.textContent = tries;
+    matchesEl.textContent = matches;
+    totalPairsEl.textContent = totalPairs;
+  }
 
-    <script>
-        // The Filipino Themed Data (Using Emojis as proxies for cultural icons)
-        const culturalIcons = [
-            { name: 'jeepney', emoji: '🚌' },     // Proxy for Jeepney
-            { name: 'mango', emoji: '🥭' },       // National Fruit
-            { name: 'tarsier', emoji: '🙉' },     // Proxy for Tarsier (small primate)
-            { name: 'salakot', emoji: '👒' },     // Traditional hat
-            { name: 'lechon', emoji: '🐖' },      // Roasted pig
-            { name: 'coconut', emoji: '🌴' },     // Tree of life
-            { name: 'volcano', emoji: '🌋' },     // Mayon/Taal proxy
-            { name: 'beach', emoji: '🏖️' }       // The islands
-        ];
+  function setGridCols(cardCount){
+    // responsive grid density
+    // no direct colors or themes; just keep it playable
+  }
 
-        // Game State Variables
-        let gridContainer = document.getElementById('gameGrid');
-        let movesDisplay = document.getElementById('moves-count');
-        let matchesDisplay = document.getElementById('matches-count');
-        let victoryMessage = document.getElementById('victory-message');
+  function startGame(newStage=1, doPeek=true){
+    stage = newStage;
+    tries = 0; matches = 0; first = null; second = null; busy = false;
+    const { cards, cfg } = buildDeck(stage);
+    deck = cards;
+    totalPairs = deck.length / 2;
 
-        let cards = [];
-        let hasFlippedCard = false;
-        let lockBoard = false;
-        let firstCard, secondCard;
-        let moves = 0;
-        let matches = 0;
+    gridEl.innerHTML = deck.map(cardHTML).join("");
+    updateHUD();
 
-        // --- Initialization Functions ---
+    const cardsEls = [...gridEl.querySelectorAll(".card")];
+    cardsEls.forEach(el => {
+      el.addEventListener("click", () => onTap(el, cfg));
+      el.addEventListener("touchstart", (e) => { e.preventDefault(); onTap(el, cfg); }, {passive:false});
+    });
 
-        function initGame() {
-            // Reset state
-            moves = 0;
-            matches = 0;
-            movesDisplay.textContent = moves;
-            matchesDisplay.textContent = matches;
-            victoryMessage.style.display = 'none';
-            gridContainer.innerHTML = '';
-            
-            // 1. Duplicate array to create pairs (8 pairs = 16 cards)
-            let gameDeck = [...culturalIcons, ...culturalIcons];
-            
-            // 2. Shuffle the deck
-            shuffle(gameDeck);
-            
-            // 3. Generate HTML cards
-            gameDeck.forEach(item => {
-                const cardElement = createCardElement(item);
-                gridContainer.appendChild(cardElement);
-            });
+    // Peek preview (helps toddlers). Stage makes it shorter.
+    if(doPeek){
+      busy = true;
+      cardsEls.forEach(el => el.classList.add("flipped"));
+      setTimeout(() => {
+        cardsEls.forEach(el => el.classList.remove("flipped"));
+        busy = false;
+        sparkle();
+      }, cfg.peekMs);
+    }
+  }
 
-            // Get all newly created cards
-            cards = document.querySelectorAll('.card');
-        }
+  function onTap(el, cfg){
+    if(busy) return;
+    if(el.classList.contains("flipped") || el.classList.contains("matched")) return;
 
-        // Helper to create the HTML structure for a single card
-        function createCardElement(item) {
-            const card = document.createElement('div');
-            card.classList.add('card');
-            card.dataset.name = item.name; // Store the name for comparison later
+    // flip
+    el.classList.add("flipped");
+    const id = el.dataset.id;
+    const m = MONSTERS.find(x => x.id === id);
+    if(m) beep("sine", m.note, 0.07, 0.06);
 
-            const frontFace = document.createElement('div');
-            frontFace.classList.add('card-face', 'card-front');
-            frontFace.textContent = item.emoji;
+    if(!first){
+      first = el;
+      return;
+    }
+    if(first && !second){
+      second = el;
+      tries++;
+      updateHUD();
+      checkMatch(cfg);
+    }
+  }
 
-            const backFace = document.createElement('div');
-            backFace.classList.add('card-face', 'card-back');
-            // The content is handled by CSS ::after
+  function checkMatch(cfg){
+    if(!first || !second) return;
+    busy = true;
+    const same = first.dataset.id === second.dataset.id;
 
-            card.appendChild(frontFace);
-            card.appendChild(backFace);
-            card.addEventListener('click', flipCard);
-            return card;
-        }
+    if(same){
+      // match
+      first.classList.add("matched");
+      second.classList.add("matched");
+      good();
+      matches++;
+      updateHUD();
+      confettiBurst();
+      resetPick();
 
-        // Fisher-Yates Shuffle Algorithm
-        function shuffle(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-            return array;
-        }
+      // stage done?
+      if(matches >= totalPairs){
+        setTimeout(() => {
+          winOverlay.classList.add("show");
+          document.getElementById("winTitle").textContent = "Stage " + stage + " Complete!";
+          const next = stage + 1;
+          const cfg2 = stageConfig(next);
+          document.getElementById("winText").textContent =
+            `Next stage: ${cfg2.pairs} monster pairs. Ready?`;
+        }, 450);
+      } else {
+        busy = false;
+      }
+    } else {
+      // mismatch
+      bad();
+      first.classList.add("wiggle");
+      second.classList.add("wiggle");
+      setTimeout(() => {
+        first.classList.remove("flipped","wiggle");
+        second.classList.remove("flipped","wiggle");
+        resetPick();
+        busy = false;
+      }, cfg.mismatchDelay);
+    }
+  }
 
-        // --- Game Logic Functions ---
+  function resetPick(){ first = null; second = null; }
 
-        function flipCard() {
-            // Don't allow flipping if board is locked or clicking the same card twice
-            if (lockBoard) return;
-            if (this === firstCard) return;
+  function confettiBurst(){
+    // light, kid-safe visual sparkle confetti
+    const rect = gridEl.getBoundingClientRect();
+    const cx = rect.left + rect.width * (0.2 + Math.random()*0.6);
+    const cy = rect.top + rect.height * (0.2 + Math.random()*0.6);
 
-            this.classList.add('flipped');
+    for(let i=0;i<18;i++){
+      const s = document.createElement("div");
+      s.className = "spark";
+      const ang = Math.random()*Math.PI*2;
+      const dist = 40 + Math.random()*90;
+      const x2 = cx + Math.cos(ang)*dist;
+      const y2 = cy + Math.sin(ang)*dist;
+      s.style.left = cx + "px";
+      s.style.top = cy + "px";
+      s.style.transform = "translate(-50%,-50%) rotate("+(Math.random()*90)+"deg)";
+      s.style.opacity = "0.95";
+      s.style.background = `hsl(${Math.floor(Math.random()*360)}, 90%, 70%)`;
+      confettiEl.appendChild(s);
 
-            if (!hasFlippedCard) {
-                // First card click
-                hasFlippedCard = true;
-                firstCard = this;
-                return;
-            }
+      // animate with JS (simple + reliable)
+      const t0 = performance.now();
+      const dur = 420 + Math.random()*220;
+      const startX = cx, startY = cy;
+      const endX = x2, endY = y2;
+      const spin = (Math.random()<.5?-1:1) * (120 + Math.random()*220);
 
-            // Second card click
-            secondCard = this;
-            incrementMoves();
-            checkForMatch();
-        }
+      function step(t){
+        const p = Math.min(1, (t - t0)/dur);
+        const ease = 1 - Math.pow(1-p, 3);
+        const x = startX + (endX-startX)*ease;
+        const y = startY + (endY-startY)*ease + (1-p)*(-10);
+        s.style.left = x + "px";
+        s.style.top = y + "px";
+        s.style.transform = `translate(-50%,-50%) rotate(${spin*ease}deg) scale(${1 - p*0.2})`;
+        s.style.opacity = String(0.95 - p*0.95);
+        if(p < 1) requestAnimationFrame(step);
+        else s.remove();
+      }
+      requestAnimationFrame(step);
+    }
+  }
 
-        function incrementMoves() {
-            moves++;
-            movesDisplay.textContent = moves;
-        }
-
-        function checkForMatch() {
-            let isMatch = firstCard.dataset.name === secondCard.dataset.name;
-
-            if (isMatch) {
-                disableCards();
-                matches++;
-                matchesDisplay.textContent = matches;
-                if (matches === 8) {
-                    setTimeout(() => {
-                        victoryMessage.style.display = 'flex';
-                    }, 500);
-                }
-            } else {
-                unflipCards();
-            }
-        }
-
-        function disableCards() {
-            // Mark them as matched so they can't be clicked again
-            firstCard.classList.add('matched');
-            secondCard.classList.add('matched');
-            resetBoard();
-        }
-
-        function unflipCards() {
-            lockBoard = true; // Lock board while waiting for flip back
-
-            setTimeout(() => {
-                firstCard.classList.remove('flipped');
-                secondCard.classList.remove('flipped');
-                resetBoard();
-            }, 1000); // Wait 1 second before flipping back
-        }
-
-        function resetBoard() {
-            [hasFlippedCard, lockBoard] = [false, false];
-            [firstCard, secondCard] = [null, null];
-        }
-
-        function restartGame() {
-            initGame();
-        }
-
-        // Start the game on load
-        initGame();
-
-    </script>
+  // Start overlay shown until user taps Start (audio policy)
+  // If user doesn’t care about sound, they can start silent.
+})();
+</script>
 </body>
 </html>
