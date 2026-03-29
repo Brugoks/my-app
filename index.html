@@ -1,747 +1,529 @@
-<!DOCTYPE html>
+import { useState, useRef, useCallback } from “react”;
 
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>SplitTab</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+const COLORS = [’#e8b84b’,’#5ce09e’,’#5c9be0’,’#e05ce0’,’#e0845c’,’#5ce0d4’,’#c45ce0’,’#e05c7a’];
 
-<style>
-  :root {
-    --bg: #0e0e0f;
-    --surface: #181819;
-    --surface2: #222224;
-    --surface3: #2a2a2d;
-    --border: #2f2f33;
-    --gold: #e8b84b;
-    --gold-dim: #b8902e;
-    --gold-glow: rgba(232,184,75,0.15);
-    --text: #f0ede8;
-    --text-dim: #8a8680;
-    --text-muted: #4a4845;
-    --danger: #e05c5c;
-    --green: #5ce09e;
-    --radius: 16px;
-    --radius-sm: 10px;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; overflow-x: hidden; }
-
-  /* Grain overlay */
-  body::before {
-    content: '';
-    position: fixed; inset: 0; z-index: 9999; pointer-events: none;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-    opacity: 0.35;
-  }
-
-  #app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
-
-  /* Header */
-  header {
-    padding: 20px 20px 0;
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .logo { font-family: 'DM Serif Display', serif; font-size: 26px; color: var(--gold); letter-spacing: -0.5px; }
-  .logo span { font-style: italic; color: var(--text-dim); font-size: 22px; }
-  .step-indicator { display: flex; gap: 5px; align-items: center; }
-  .step-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: all 0.3s; }
-  .step-dot.active { background: var(--gold); width: 18px; border-radius: 3px; }
-  .step-dot.done { background: var(--gold-dim); }
-
-  /* Screens */
-  .screen { display: none; flex-direction: column; flex: 1; padding: 20px; animation: fadeUp 0.35s ease; }
-  .screen.active { display: flex; }
-  @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
-
-  h2 { font-family: 'DM Serif Display', serif; font-size: 28px; line-height: 1.2; margin-bottom: 6px; }
-  h2 em { font-style: italic; color: var(--gold); }
-  .subtitle { color: var(--text-dim); font-size: 14px; margin-bottom: 24px; }
-
-  /* Upload Zone */
-  .preview-zone {
-    border: 1.5px dashed var(--border); border-radius: var(--radius);
-    background: var(--surface); padding: 20px; text-align: center;
-    margin-bottom: 16px; display: none;
-  }
-  .preview-zone.has-image { display: block; }
-  .preview-img { max-width: 100%; max-height: 200px; border-radius: var(--radius-sm); object-fit: contain; margin-bottom: 8px; }
-  .preview-filename { color: var(--text-dim); font-size: 12px; }
-
-  .upload-btn-row { display: flex; gap: 10px; margin-bottom: 10px; }
-  .upload-btn {
-    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 8px; padding: 22px 12px;
-    background: var(--surface); border: 1.5px solid var(--border);
-    border-radius: var(--radius); cursor: pointer; transition: all 0.2s;
-    color: var(--text-dim); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
-    position: relative; overflow: hidden;
-  }
-  .upload-btn:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-glow); }
-  .upload-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-  .upload-btn-icon { font-size: 28px; }
-
-  /* Divider */
-  .or-divider { display: flex; align-items: center; gap: 12px; color: var(--text-muted); font-size: 12px; margin: 8px 0 20px; }
-  .or-divider::before, .or-divider::after { content:''; flex:1; height:1px; background: var(--border); }
-
-  /* Buttons */
-  .btn {
-    width: 100%; padding: 15px; border-radius: var(--radius-sm); border: none;
-    font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600;
-    cursor: pointer; transition: all 0.2s; letter-spacing: 0.2px;
-  }
-  .btn-gold { background: var(--gold); color: #1a1500; }
-  .btn-gold:hover { background: #f0c958; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(232,184,75,0.25); }
-  .btn-gold:active { transform: translateY(0); }
-  .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-  .btn-ghost:hover { background: var(--surface3); }
-  .btn-sm { padding: 8px 14px; width: auto; font-size: 13px; border-radius: 8px; }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
-
-  /* Loading */
-  .loading-state { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 40px 0; }
-  .spinner { width: 40px; height: 40px; border: 2.5px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .loading-state p { color: var(--text-dim); font-size: 14px; }
-
-  /* People */
-  .people-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
-  .person-tag {
-    display: flex; align-items: center; justify-content: space-between;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 12px 14px;
-    animation: fadeUp 0.2s ease;
-  }
-  .person-color { width: 10px; height: 10px; border-radius: 50%; margin-right: 10px; flex-shrink: 0; }
-  .person-name { font-weight: 500; flex: 1; }
-  .person-remove { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 18px; padding: 0 4px; transition: color 0.2s; }
-  .person-remove:hover { color: var(--danger); }
-  .add-person-row { display: flex; gap: 8px; }
-  .input-field {
-    flex: 1; background: var(--surface); border: 1.5px solid var(--border);
-    border-radius: var(--radius-sm); padding: 13px 14px; color: var(--text);
-    font-family: 'DM Sans', sans-serif; font-size: 15px; outline: none;
-    transition: border-color 0.2s;
-  }
-  .input-field:focus { border-color: var(--gold); }
-  .input-field::placeholder { color: var(--text-muted); }
-
-  /* Items */
-  .items-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; overflow-y: auto; max-height: calc(100vh - 320px); }
-  .item-card {
-    background: var(--surface); border: 1.5px solid var(--border);
-    border-radius: var(--radius); padding: 14px;
-    transition: border-color 0.2s;
-  }
-  .item-card.fully-assigned { border-color: rgba(92,224,158,0.3); }
-  .item-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-  .item-name { font-weight: 600; font-size: 15px; flex: 1; margin-right: 8px; }
-  .item-price { color: var(--gold); font-weight: 600; font-size: 16px; white-space: nowrap; }
-  .item-actions-row { display: flex; align-items: center; gap: 6px; justify-content: space-between; }
-  .item-remove-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; padding: 2px; transition: color 0.2s; }
-  .item-remove-btn:hover { color: var(--danger); }
-  .assign-chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
-  .chip {
-    padding: 5px 11px; border-radius: 20px; font-size: 12px; font-weight: 500;
-    cursor: pointer; transition: all 0.15s; border: 1.5px solid transparent;
-    background: var(--surface2); color: var(--text-dim);
-  }
-  .chip.selected { color: #111; font-weight: 600; }
-  .chip:hover { opacity: 0.85; }
-  .unassigned-badge { font-size: 11px; color: var(--text-muted); font-style: italic; }
-  .assigned-count { font-size: 11px; color: var(--green); }
-
-  /* Add item manual */
-  .add-item-form { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
-  .add-item-form h4 { font-size: 13px; font-weight: 600; color: var(--text-dim); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .add-item-row { display: flex; gap: 8px; }
-  .input-field-sm { background: var(--surface3); border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s; width: 100%; }
-  .input-field-sm:focus { border-color: var(--gold); }
-  .input-field-sm::placeholder { color: var(--text-muted); }
-  .input-field-sm.price-input { width: 90px; flex-shrink: 0; }
-
-  /* Totals edit */
-  .totals-row { display: flex; gap: 8px; margin-bottom: 12px; }
-  .total-field { flex: 1; display: flex; flex-direction: column; gap: 5px; }
-  .total-field label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
-
-  /* Summary */
-  .summary-cards { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
-  .summary-card {
-    background: var(--surface); border: 1.5px solid var(--border);
-    border-radius: var(--radius); overflow: hidden;
-  }
-  .summary-card-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 16px; border-bottom: 1px solid var(--border);
-  }
-  .summary-person { display: flex; align-items: center; gap: 10px; }
-  .summary-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
-  .summary-name { font-weight: 600; font-size: 16px; }
-  .summary-total { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--gold); }
-  .summary-items { padding: 10px 16px; display: flex; flex-direction: column; gap: 6px; }
-  .summary-item-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-dim); }
-  .summary-item-row.fee { color: var(--text-muted); }
-  .summary-divider { height: 1px; background: var(--border); margin: 4px 0; }
-
-  /* Grand total */
-  .grand-total-bar {
-    background: linear-gradient(135deg, var(--surface2), var(--surface3));
-    border: 1px solid var(--border); border-radius: var(--radius); padding: 16px;
-    display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
-  }
-  .grand-total-label { color: var(--text-dim); font-size: 14px; }
-  .grand-total-amount { font-family: 'DM Serif Display', serif; font-size: 28px; color: var(--gold); }
-
-  .warning-bar { background: rgba(224,92,92,0.1); border: 1px solid rgba(224,92,92,0.3); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 13px; color: var(--danger); margin-bottom: 12px; }
-
-  /* Bottom nav spacer */
-  .spacer { flex: 1; }
-  .bottom-actions { padding: 12px 0 0; display: flex; gap: 8px; }
-  .bottom-actions .btn { flex: 1; }
-
-  /* Toggle add item */
-  .toggle-add-btn { background: none; border: 1.5px dashed var(--border); border-radius: var(--radius-sm); padding: 10px; width: 100%; color: var(--text-muted); font-size: 13px; cursor: pointer; transition: all 0.2s; margin-bottom: 10px; font-family: 'DM Sans', sans-serif; }
-  .toggle-add-btn:hover { border-color: var(--gold); color: var(--gold); }
-
-  /* Tabs */
-  .tab-btn { flex:1; padding:9px; border:none; border-radius:8px; background:transparent; color:var(--text-muted); font-family:'DM Sans',sans-serif; font-size:13px; font-weight:500; cursor:pointer; transition:all 0.2s; }
-  .tab-btn.active { background:var(--surface3); color:var(--text); }
-
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-</style>
-
-</head>
-<body>
-<div id="app">
-  <header>
-    <div class="logo">Split<span>Tab</span></div>
-    <div class="step-indicator">
-      <div class="step-dot active" id="dot-0"></div>
-      <div class="step-dot" id="dot-1"></div>
-      <div class="step-dot" id="dot-2"></div>
-      <div class="step-dot" id="dot-3"></div>
-    </div>
-  </header>
-
-  <!-- SCREEN 0: Upload -->
-
-  <div class="screen active" id="screen-0">
-    <h2 style="margin-top:20px">Import your <em>receipt</em></h2>
-    <p class="subtitle">Photo or paste text — your choice</p>
-
-```
-<!-- Tabs -->
-<div style="display:flex;gap:0;background:var(--surface2);border-radius:10px;padding:3px;margin-bottom:16px;">
-  <button class="tab-btn active" id="tabPhoto" onclick="switchTab('photo')">📷 Photo</button>
-  <button class="tab-btn" id="tabText" onclick="switchTab('text')">📋 Paste Text</button>
-</div>
-
-<!-- Photo tab -->
-<div id="panelPhoto">
-  <label class="upload-btn" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:8px;padding:28px 12px;background:var(--surface);border:1.5px dashed var(--border);border-radius:var(--radius);cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden;">
-    <span style="font-size:36px">🖼️</span>
-    <span style="font-weight:600;color:var(--text)">Upload Receipt</span>
-    <span style="font-size:12px;color:var(--text-muted)">Camera or photo library</span>
-    <input type="file" accept="image/*" id="photoInput" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
-  </label>
-  <div id="previewZone" style="display:none;margin-top:12px;text-align:center;">
-    <img id="previewImg" style="max-width:100%;max-height:200px;border-radius:10px;object-fit:contain;">
-    <div id="previewFilename" style="font-size:12px;color:var(--text-muted);margin-top:6px;"></div>
-  </div>
-  <div style="height:12px"></div>
-  <button class="btn btn-gold" id="scanBtn" disabled>Scan Receipt</button>
-  <div id="scanStatus" style="margin-top:10px;font-size:13px;color:var(--text-dim);text-align:center;display:none;"></div>
-  <div id="scanError" style="display:none;margin-top:8px;padding:10px 14px;background:rgba(224,92,92,0.12);border:1px solid rgba(224,92,92,0.3);border-radius:10px;font-size:13px;color:#e05c5c;"></div>
-</div>
-
-<!-- Text tab -->
-<div id="panelText" style="display:none;">
-  <textarea id="receiptText" class="input-field" placeholder="Paste receipt text here…
-```
-
-Example:
-Burger         12.50
-Fries           4.00
-Tax             1.52
-Tip             3.00” style=“height:200px;resize:none;width:100%;font-family:monospace;font-size:13px;line-height:1.6;”></textarea>
-<div id="parseError" style="display:none;margin-top:8px;padding:10px 14px;background:rgba(224,92,92,0.12);border:1px solid rgba(224,92,92,0.3);border-radius:10px;font-size:13px;color:#e05c5c;"></div>
-<div style="height:10px"></div>
-<button class="btn btn-gold" id="parseBtn">Parse Receipt</button>
-</div>
-
-```
-<div style="height:8px"></div>
-<button class="btn btn-ghost" id="skipScanBtn">Skip — Add Items Manually</button>
-```
-
-  </div>
-
-  <!-- SCREEN 1: People -->
-
-  <div class="screen" id="screen-1">
-    <h2 style="margin-top:20px">Who's <em>splitting</em>?</h2>
-    <p class="subtitle">Add everyone at the table</p>
-    <div class="people-list" id="peopleList"></div>
-    <div class="add-person-row">
-      <input type="text" class="input-field" id="personInput" placeholder="Add a name…" maxlength="20">
-      <button class="btn btn-gold btn-sm" id="addPersonBtn">Add</button>
-    </div>
-    <div class="spacer"></div>
-    <div class="bottom-actions">
-      <button class="btn btn-ghost" onclick="goTo(0)">Back</button>
-      <button class="btn btn-gold" id="toPeopleNextBtn" disabled>Next</button>
-    </div>
-  </div>
-
-  <!-- SCREEN 2: Assign -->
-
-  <div class="screen" id="screen-2">
-    <h2 style="margin-top:16px">Assign <em>dishes</em></h2>
-    <p class="subtitle">Tap names to assign. Multiple people can share an item.</p>
-
-```
-<div class="totals-row">
-  <div class="total-field">
-    <label>Tax ($)</label>
-    <input type="number" class="input-field-sm" id="taxInput" placeholder="0.00" min="0" step="0.01">
-  </div>
-  <div class="total-field">
-    <label>Tip ($)</label>
-    <input type="number" class="input-field-sm" id="tipInput" placeholder="0.00" min="0" step="0.01">
-  </div>
-</div>
-
-<button class="toggle-add-btn" id="toggleAddItem">＋ Add item manually</button>
-<div class="add-item-form" id="addItemForm" style="display:none">
-  <h4>New Item</h4>
-  <div class="add-item-row">
-    <input type="text" class="input-field-sm" id="newItemName" placeholder="Item name">
-    <input type="number" class="input-field-sm price-input" id="newItemPrice" placeholder="$0.00" min="0" step="0.01">
-    <button class="btn btn-gold btn-sm" id="addItemBtn">Add</button>
-  </div>
-</div>
-
-<div class="items-list" id="itemsList"></div>
-
-<div class="bottom-actions">
-  <button class="btn btn-ghost" onclick="goTo(1)">Back</button>
-  <button class="btn btn-gold" id="toSummaryBtn">View Summary</button>
-</div>
-```
-
-  </div>
-
-  <!-- SCREEN 3: Summary -->
-
-  <div class="screen" id="screen-3">
-    <h2 style="margin-top:16px">The <em>breakdown</em></h2>
-    <p class="subtitle">Here's what everyone owes</p>
-    <div class="grand-total-bar">
-      <div>
-        <div class="grand-total-label">Total Bill</div>
-      </div>
-      <div class="grand-total-amount" id="grandTotal">$0.00</div>
-    </div>
-    <div id="warningBar" class="warning-bar" style="display:none">⚠️ Some items are unassigned — check amounts</div>
-    <div class="summary-cards" id="summaryCards"></div>
-    <div class="bottom-actions">
-      <button class="btn btn-ghost" onclick="goTo(2)">Edit</button>
-      <button class="btn btn-gold" onclick="resetAll()">New Split</button>
-    </div>
-  </div>
-</div>
-
-<script>
-const COLORS = ['#e8b84b','#5ce09e','#5c9be0','#e05ce0','#e0845c','#5ce0d4','#c45ce0','#e05c7a'];
-let state = {
-  storedFile: null,
-  items: [],
-  people: [],
-  tax: 0,
-  tip: 0,
+const S = {
+wrap: { fontFamily: “‘DM Sans’, system-ui, sans-serif”, background: ‘#0e0e0f’, color: ‘#f0ede8’, minHeight: ‘100vh’, maxWidth: 480, margin: ‘0 auto’, display: ‘flex’, flexDirection: ‘column’ },
+header: { padding: ‘18px 20px 0’, display: ‘flex’, alignItems: ‘center’, justifyContent: ‘space-between’ },
+logo: { fontFamily: ‘Georgia, serif’, fontSize: 24, color: ‘#e8b84b’, letterSpacing: -0.5 },
+logoItal: { fontStyle: ‘italic’, color: ‘#8a8680’, fontSize: 20 },
+dots: { display: ‘flex’, gap: 5, alignItems: ‘center’ },
+screen: { display: ‘flex’, flexDirection: ‘column’, flex: 1, padding: 20 },
+h2: { fontFamily: ‘Georgia, serif’, fontSize: 28, lineHeight: 1.2, marginBottom: 6, marginTop: 16 },
+gold: { color: ‘#e8b84b’, fontStyle: ‘italic’ },
+sub: { color: ‘#8a8680’, fontSize: 14, marginBottom: 20 },
+btn: { width: ‘100%’, padding: ‘14px’, borderRadius: 10, border: ‘none’, fontSize: 15, fontWeight: 600, cursor: ‘pointer’, transition: ‘all 0.2s’, fontFamily: ‘inherit’, letterSpacing: 0.2 },
+btnGold: { background: ‘#e8b84b’, color: ‘#1a1500’ },
+btnGhost: { background: ‘#222224’, color: ‘#f0ede8’, border: ‘1px solid #2f2f33’ },
+btnSm: { padding: ‘8px 14px’, width: ‘auto’, fontSize: 13, borderRadius: 8 },
+btnDis: { opacity: 0.4, cursor: ‘not-allowed’ },
+input: { width: ‘100%’, background: ‘#181819’, border: ‘1.5px solid #2f2f33’, borderRadius: 10, padding: ‘13px 14px’, color: ‘#f0ede8’, fontSize: 15, fontFamily: ‘inherit’, outline: ‘none’ },
+inputSm: { background: ‘#2a2a2d’, border: ‘1.5px solid #2f2f33’, borderRadius: 8, padding: ‘10px 12px’, color: ‘#f0ede8’, fontSize: 14, fontFamily: ‘inherit’, outline: ‘none’ },
+card: { background: ‘#181819’, border: ‘1.5px solid #2f2f33’, borderRadius: 16, padding: 14, transition: ‘border-color 0.2s’ },
+cardAssigned: { borderColor: ‘rgba(92,224,158,0.35)’ },
+chip: { padding: ‘5px 11px’, borderRadius: 20, fontSize: 12, fontWeight: 500, cursor: ‘pointer’, border: ‘1.5px solid transparent’, background: ‘#222224’, color: ‘#8a8680’, transition: ‘all 0.15s’, userSelect: ‘none’ },
+err: { background: ‘rgba(224,92,92,0.12)’, border: ‘1px solid rgba(224,92,92,0.3)’, borderRadius: 10, padding: ‘10px 14px’, fontSize: 13, color: ‘#e05c5c’, marginTop: 8 },
+row: { display: ‘flex’, gap: 8, alignItems: ‘center’ },
+spacer: { flex: 1 },
+divider: { height: 1, background: ‘#2f2f33’, margin: ‘4px 0’ },
 };
 
-// ---- Navigation ----
-function goTo(n) {
-  document.querySelectorAll('.screen').forEach((s,i) => s.classList.toggle('active', i===n));
-  document.querySelectorAll('.step-dot').forEach((d,i) => {
-    d.classList.toggle('active', i===n);
-    d.classList.toggle('done', i<n);
-  });
-  if (n===2) renderItems();
-  if (n===3) renderSummary();
+function Dot({ active, done }) {
+return <div style={{ width: active ? 18 : 6, height: 6, borderRadius: active ? 3 : ‘50%’, background: active ? ‘#e8b84b’ : done ? ‘#b8902e’ : ‘#2f2f33’, transition: ‘all 0.3s’ }} />;
 }
 
-// ---- Screen 0 ----
-function switchTab(tab) {
-  document.getElementById('panelPhoto').style.display = tab === 'photo' ? 'block' : 'none';
-  document.getElementById('panelText').style.display  = tab === 'text'  ? 'block' : 'none';
-  document.getElementById('tabPhoto').classList.toggle('active', tab === 'photo');
-  document.getElementById('tabText').classList.toggle('active', tab === 'text');
-}
-
-// Photo tab
-document.getElementById('photoInput').addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  state.storedFile = file;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    document.getElementById('previewImg').src = ev.target.result;
-    document.getElementById('previewFilename').textContent = file.name;
-    document.getElementById('previewZone').style.display = 'block';
-    document.getElementById('scanBtn').disabled = false;
-  };
-  reader.readAsDataURL(file);
-});
-
-document.getElementById('scanBtn').addEventListener('click', async () => {
-  const errorDiv = document.getElementById('scanError');
-  const statusDiv = document.getElementById('scanStatus');
-  errorDiv.style.display = 'none';
-  statusDiv.style.display = 'block';
-  statusDiv.textContent = 'Reading receipt…';
-  document.getElementById('scanBtn').disabled = true;
-  document.getElementById('scanBtn').textContent = 'Scanning…';
-
-  try {
-    const file = state.storedFile;
-    const base64 = await new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload = e => res(e.target.result.split(',')[1]);
-      r.onerror = () => rej(new Error('Could not read file'));
-      r.readAsDataURL(file);
-    });
-
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1024,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: file.type || 'image/jpeg', data: base64 } },
-            { type: 'text', text: `Parse this receipt image. Return ONLY a JSON object, no markdown, no explanation.
-Format: {"items":[{"name":"string","price":number}],"tax":number,"tip":number}
-- Combine each dish with its add-ons/modifiers into one item, summing their prices
-- price/tax/tip are dollar amounts as plain numbers
-- Skip subtotal, total, balance, payment method lines
-- Use 0 for tax or tip if not shown` }
-          ]
-        }]
-      })
-    });
-
-    if (!resp.ok) {
-      const t = await resp.text().catch(() => '');
-      throw new Error(`API error ${resp.status}: ${t.slice(0,100)}`);
-    }
-    const data = await resp.json();
-    const raw = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('').trim();
-    const clean = raw.replace(/^```[a-z]*\n?/i,'').replace(/```$/,'').trim();
-    const parsed = JSON.parse(clean);
-    applyReceiptData(parsed);
-    goTo(1);
-
-  } catch(err) {
-    errorDiv.textContent = '⚠️ ' + err.message;
-    errorDiv.style.display = 'block';
-    document.getElementById('scanBtn').disabled = false;
-    document.getElementById('scanBtn').textContent = 'Scan Receipt';
-  } finally {
-    statusDiv.style.display = 'none';
-  }
-});
-
-// Text tab
-document.getElementById('parseBtn').addEventListener('click', () => {
-  const errorDiv = document.getElementById('parseError');
-  errorDiv.style.display = 'none';
-  const text = document.getElementById('receiptText').value.trim();
-  if (!text) {
-    errorDiv.textContent = '⚠️ Paste some receipt text first.';
-    errorDiv.style.display = 'block';
-    return;
-  }
-  const result = parseReceiptText(text);
-  if (result.items.length === 0) {
-    errorDiv.textContent = '⚠️ No items found. Each line needs a name and a price, e.g. "Burger 12.50".';
-    errorDiv.style.display = 'block';
-    return;
-  }
-  applyReceiptData(result);
-  goTo(1);
-});
-
-document.getElementById('skipScanBtn').addEventListener('click', () => {
-  state.items = [];
-  goTo(1);
-});
-
-function parseReceiptText(raw) {
-  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
-  const items = [];
-  let tax = 0, tip = 0;
-
-  const priceRe = /\$?\s*\+?\s*(\d{1,4}[.,]\d{2})\s*$/;
-  const skipRe = /subtotal|sub-total|sub total|total|balance|amount due|change|cash|credit|card|visa|master|amex|discover|thank|welcome|receipt|order|table|server|guest|www\.|\.com/i;
-  const taxRe = /\btax\b|hst|gst|pst|vat/i;
-  const tipRe = /\btip\b|gratuity|service charge/i;
-
-  for (const line of lines) {
-    const m = line.match(priceRe);
-    if (!m) continue;
-    const price = parseFloat(m[1].replace(',', '.'));
-    if (isNaN(price) || price < 0) continue;
-
-    let name = line.slice(0, line.lastIndexOf(m[0])).trim()
-      .replace(/^\d+x?\s*/i, '')   // strip leading qty like "2x" or "2 "
-      .replace(/[\*\|\+]/g, '')
-      .replace(/\s{2,}/g, ' ')
-      .trim();
-
-    if (!name || name.length < 2) continue;
-    if (taxRe.test(name)) { tax = price; continue; }
-    if (tipRe.test(name)) { tip = price; continue; }
-    if (skipRe.test(name)) continue;
-    if (/^\d+$/.test(name)) continue;
-
-    // Modifiers starting with + are add-ons — fold into previous item's price
-    if (/^\+/.test(line) && items.length > 0) {
-      items[items.length - 1].price = parseFloat((items[items.length - 1].price + price).toFixed(2));
-      items[items.length - 1].name += ` +${name.replace(/^\+/, '').trim()}`;
-      continue;
-    }
-
-    items.push({ name: toTitleCase(name), price });
-  }
-
-  return { items, tax, tip };
+function Spinner() {
+return <div style={{ width: 38, height: 38, border: ‘2.5px solid #2f2f33’, borderTopColor: ‘#e8b84b’, borderRadius: ‘50%’, animation: ‘spin 0.8s linear infinite’ }} />;
 }
 
 function toTitleCase(s) {
-  return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 }
 
-function applyReceiptData(data) {
-  state.items = (data.items||[]).map((item, i) => ({
-    id: 'item_'+Date.now()+'_'+i,
-    name: item.name,
-    price: parseFloat(item.price)||0,
-    assignedTo: []
-  }));
-  state.tax = parseFloat(data.tax)||0;
-  state.tip = parseFloat(data.tip)||0;
-  document.getElementById('taxInput').value = state.tax > 0 ? state.tax.toFixed(2) : '';
-  document.getElementById('tipInput').value = state.tip > 0 ? state.tip.toFixed(2) : '';
+function parseReceiptText(raw) {
+const lines = raw.split(’\n’).map(l => l.trim()).filter(Boolean);
+const items = [];
+let tax = 0, tip = 0;
+const priceRe = /$?\s*+?\s*(\d{1,4}[.,]\d{2})\s*$/;
+const skipRe = /subtotal|sub-total|sub total|total|balance|amount due|change|cash|credit|card|visa|master|amex|discover|thank|welcome|receipt|order|table|server|guest|www.|.com/i;
+const taxRe = /\btax\b|hst|gst|pst|vat/i;
+const tipRe = /\btip\b|gratuity|service charge/i;
+for (const line of lines) {
+const m = line.match(priceRe);
+if (!m) continue;
+const price = parseFloat(m[1].replace(’,’, ‘.’));
+if (isNaN(price) || price < 0) continue;
+let name = line.slice(0, line.lastIndexOf(m[0])).trim()
+.replace(/^\d+x?\s*/i, ‘’).replace(/[*|+]/g, ‘’).replace(/\s{2,}/g, ’ ’).trim();
+if (!name || name.length < 2) continue;
+if (taxRe.test(name)) { tax = price; continue; }
+if (tipRe.test(name)) { tip = price; continue; }
+if (skipRe.test(name)) continue;
+if (/^\d+$/.test(name)) continue;
+if (/^+/.test(line) && items.length > 0) {
+items[items.length - 1].price = parseFloat((items[items.length - 1].price + price).toFixed(2));
+continue;
+}
+items.push({ name: toTitleCase(name), price });
+}
+return { items, tax, tip };
 }
 
-// ---- Screen 1: People ----
-function renderPeople() {
-  const list = document.getElementById('peopleList');
-  list.innerHTML = '';
-  state.people.forEach(p => {
-    const div = document.createElement('div');
-    div.className = 'person-tag';
-    div.innerHTML = `<div class="person-color" style="background:${p.color}"></div>
-      <span class="person-name">${escHtml(p.name)}</span>
-      <button class="person-remove" data-id="${p.id}">×</button>`;
-    list.appendChild(div);
-  });
-  list.querySelectorAll('.person-remove').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.id;
-      state.people = state.people.filter(p => p.id !== id);
-      state.items.forEach(item => { item.assignedTo = item.assignedTo.filter(x => x !== id); });
-      renderPeople();
-      updatePeopleNext();
-    });
-  });
-  updatePeopleNext();
-}
+// ── Screen 0: Import ──────────────────────────────────────────────────────────
+function ScreenImport({ onDone, onSkip }) {
+const [tab, setTab] = useState(‘photo’);
+const [preview, setPreview] = useState(null);
+const [file, setFile] = useState(null);
+const [scanning, setScanning] = useState(false);
+const [scanErr, setScanErr] = useState(’’);
+const [pasteText, setPasteText] = useState(’’);
+const [parseErr, setParseErr] = useState(’’);
+const fileRef = useRef();
 
-function updatePeopleNext() {
-  document.getElementById('toPeopleNextBtn').disabled = state.people.length < 2;
-}
+const handleFile = useCallback(f => {
+if (!f) return;
+setFile(f);
+setScanErr(’’);
+const reader = new FileReader();
+reader.onload = e => setPreview({ src: e.target.result, name: f.name });
+reader.readAsDataURL(f);
+}, []);
 
-function addPerson() {
-  const input = document.getElementById('personInput');
-  const name = input.value.trim();
-  if (!name) return;
-  if (state.people.find(p => p.name.toLowerCase() === name.toLowerCase())) { input.value=''; return; }
-  state.people.push({ id: 'p_'+Date.now(), name, color: COLORS[state.people.length % COLORS.length] });
-  input.value = '';
-  renderPeople();
-}
-
-document.getElementById('addPersonBtn').addEventListener('click', addPerson);
-document.getElementById('personInput').addEventListener('keydown', e => { if(e.key==='Enter') addPerson(); });
-document.getElementById('toPeopleNextBtn').addEventListener('click', () => goTo(2));
-
-// ---- Screen 2: Assign ----
-document.getElementById('taxInput').addEventListener('input', e => { state.tax = parseFloat(e.target.value)||0; });
-document.getElementById('tipInput').addEventListener('input', e => { state.tip = parseFloat(e.target.value)||0; });
-
-document.getElementById('toggleAddItem').addEventListener('click', () => {
-  const form = document.getElementById('addItemForm');
-  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+const handleScan = async () => {
+if (!file) return;
+setScanning(true);
+setScanErr(’’);
+try {
+const base64 = await new Promise((res, rej) => {
+const r = new FileReader();
+r.onload = e => res(e.target.result.split(’,’)[1]);
+r.onerror = () => rej(new Error(‘Could not read file’));
+r.readAsDataURL(file);
 });
 
-document.getElementById('addItemBtn').addEventListener('click', () => {
-  const name = document.getElementById('newItemName').value.trim();
-  const price = parseFloat(document.getElementById('newItemPrice').value)||0;
-  if (!name || price <= 0) return;
-  state.items.push({ id:'item_'+Date.now(), name, price, assignedTo:[] });
-  document.getElementById('newItemName').value = '';
-  document.getElementById('newItemPrice').value = '';
-  renderItems();
-});
+```
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: file.type || 'image/jpeg', data: base64 } },
+          { type: 'text', text: `Parse this receipt. Return ONLY raw JSON, no markdown, no explanation.
+```
 
-function renderItems() {
-  const list = document.getElementById('itemsList');
-  list.innerHTML = '';
-  if (state.items.length === 0) {
-    list.innerHTML = '<p style="color:var(--text-muted);font-size:14px;text-align:center;padding:20px 0">No items yet — add one above</p>';
-    return;
+Format: {“items”:[{“name”:“string”,“price”:number}],“tax”:number,“tip”:number}
+
+- Combine each dish with its add-ons, summing prices into one item total
+- price/tax/tip are plain dollar numbers e.g. 12.50
+- Skip subtotal, total, balance, payment lines
+- Use 0 for missing tax/tip` }
+  ]
+  }]
+  })
+  });
+  
+  ```
+  if (!resp.ok) {
+    const t = await resp.text().catch(() => '');
+    throw new Error(`API ${resp.status}: ${t.slice(0, 100)}`);
   }
-  state.items.forEach(item => {
-    const card = document.createElement('div');
-    card.className = 'item-card' + (item.assignedTo.length > 0 ? ' fully-assigned' : '');
-    const chips = state.people.map(p => {
-      const sel = item.assignedTo.includes(p.id);
-      return `<div class="chip ${sel?'selected':''}" style="${sel?`background:${p.color};border-color:${p.color}`:''}" data-pid="${p.id}" data-iid="${item.id}">${escHtml(p.name)}</div>`;
-    }).join('');
-    const assignedLabel = item.assignedTo.length === 0
-      ? '<span class="unassigned-badge">unassigned</span>'
-      : `<span class="assigned-count">✓ ${item.assignedTo.length} person${item.assignedTo.length>1?'s':''}</span>`;
-    card.innerHTML = `
-      <div class="item-header">
-        <span class="item-name">${escHtml(item.name)}</span>
-        <span class="item-price">$${item.price.toFixed(2)}</span>
-      </div>
-      <div class="item-actions-row">
-        <div class="assign-chips">${chips}</div>
-        ${assignedLabel}
-        <button class="item-remove-btn" data-iid="${item.id}">🗑</button>
-      </div>`;
-    list.appendChild(card);
+  const data = await resp.json();
+  const raw = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('').trim();
+  const clean = raw.replace(/^```[a-z]*\n?/i, '').replace(/```$/, '').trim();
+  const parsed = JSON.parse(clean);
+  onDone(parsed);
+  ```
+  
+  } catch (e) {
+  setScanErr(e.message || ‘Scan failed’);
+  } finally {
+  setScanning(false);
+  }
+  };
+  
+  const handleParse = () => {
+  setParseErr(’’);
+  const result = parseReceiptText(pasteText);
+  if (result.items.length === 0) {
+  setParseErr(‘No items found. Each line needs a name and price, e.g. “Burger 12.50”.’);
+  return;
+  }
+  onDone(result);
+  };
+  
+  const tabBtn = (id, label) => ({
+  …S.btn, …S.btnSm, flex: 1,
+  background: tab === id ? ‘#2a2a2d’ : ‘transparent’,
+  color: tab === id ? ‘#f0ede8’ : ‘#4a4845’,
+  border: ‘none’, borderRadius: 8,
   });
-  // Chip toggle
-  list.querySelectorAll('.chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const iid = chip.dataset.iid, pid = chip.dataset.pid;
-      const item = state.items.find(i => i.id === iid);
-      if (!item) return;
-      if (item.assignedTo.includes(pid)) {
-        item.assignedTo = item.assignedTo.filter(x => x !== pid);
-      } else {
-        item.assignedTo.push(pid);
-      }
-      renderItems();
-    });
-  });
-  // Remove item
-  list.querySelectorAll('.item-remove-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      state.items = state.items.filter(i => i.id !== btn.dataset.iid);
-      renderItems();
-    });
-  });
-}
-
-document.getElementById('toSummaryBtn').addEventListener('click', () => goTo(3));
-
-// ---- Screen 3: Summary ----
-function renderSummary() {
-  const subtotal = state.items.reduce((s,i) => s+i.price, 0);
-  const grandTotal = subtotal + state.tax + state.tip;
-  document.getElementById('grandTotal').textContent = '$' + grandTotal.toFixed(2);
-
-  // Check unassigned
-  const unassigned = state.items.filter(i => i.assignedTo.length === 0);
-  document.getElementById('warningBar').style.display = unassigned.length > 0 ? 'block' : 'none';
-
-  const cards = document.getElementById('summaryCards');
-  cards.innerHTML = '';
-
-  state.people.forEach(person => {
-    // Items assigned to this person
-    const myItems = state.items.filter(i => i.assignedTo.includes(person.id));
-    // Each item cost = price / number of people sharing
-    const itemsTotal = myItems.reduce((s, item) => s + item.price / item.assignedTo.length, 0);
-
-    // Tax & tip proportional to their share of assigned subtotal
-    const assignedSubtotal = state.items
-      .filter(i => i.assignedTo.length > 0)
-      .reduce((s,i) => s + i.price/i.assignedTo.length, 0);
-
-    // This person's proportion of the assigned total
-    // (people who get nothing still may owe tax/tip if all items unassigned — skip that edge case)
-    const proportion = assignedSubtotal > 0 ? itemsTotal / assignedSubtotal : 0;
-    const taxShare = state.tax * proportion;
-    const tipShare = state.tip * proportion;
-    const personTotal = itemsTotal + taxShare + tipShare;
-
-    const card = document.createElement('div');
-    card.className = 'summary-card';
-    const itemRows = myItems.map(item => {
-      const share = item.price / item.assignedTo.length;
-      const label = item.assignedTo.length > 1 ? ` ÷${item.assignedTo.length}` : '';
-      return `<div class="summary-item-row"><span>${escHtml(item.name)}${label}</span><span>$${share.toFixed(2)}</span></div>`;
-    }).join('');
-
-    card.innerHTML = `
-      <div class="summary-card-header">
-        <div class="summary-person">
-          <div class="summary-dot" style="background:${person.color}"></div>
-          <span class="summary-name">${escHtml(person.name)}</span>
+  
+  return (
+  
+    <div style={S.screen}>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}} input:focus,textarea:focus{border-color:#e8b84b!important} input::placeholder,textarea::placeholder{color:#4a4845}`}</style>
+      <h2 style={S.h2}>Import your <span style={S.gold}>receipt</span></h2>
+      <p style={S.sub}>Photo or paste text — your choice</p>
+  
+  ```
+  {/* Tabs */}
+  <div style={{ display: 'flex', background: '#222224', borderRadius: 10, padding: 3, marginBottom: 16 }}>
+    <button style={tabBtn('photo')} onClick={() => setTab('photo')}>📷 Photo</button>
+    <button style={tabBtn('text')} onClick={() => setTab('text')}>📋 Paste Text</button>
+  </div>
+  
+  {/* Photo tab */}
+  {tab === 'photo' && (
+    <div style={{ animation: 'fadeUp 0.25s ease' }}>
+      <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '28px 12px', background: '#181819', border: '1.5px dashed #2f2f33', borderRadius: 16, cursor: 'pointer', position: 'relative', overflow: 'hidden', transition: 'all 0.2s' }}>
+        <span style={{ fontSize: 36 }}>🖼️</span>
+        <span style={{ fontWeight: 600 }}>Upload Receipt</span>
+        <span style={{ fontSize: 12, color: '#4a4845' }}>Camera or photo library</span>
+        <input ref={fileRef} type="file" accept="image/*" style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
+          onChange={e => handleFile(e.target.files[0])} />
+      </label>
+  
+      {preview && (
+        <div style={{ marginTop: 12, textAlign: 'center', animation: 'fadeUp 0.2s ease' }}>
+          <img src={preview.src} alt="Receipt" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 10, objectFit: 'contain' }} />
+          <div style={{ fontSize: 12, color: '#8a8680', marginTop: 6 }}>{preview.name}</div>
         </div>
-        <div class="summary-total">$${personTotal.toFixed(2)}</div>
+      )}
+  
+      <div style={{ height: 14 }} />
+  
+      {scanning ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '20px 0' }}>
+          <Spinner />
+          <span style={{ color: '#8a8680', fontSize: 14 }}>Reading receipt…</span>
+        </div>
+      ) : (
+        <button style={{ ...S.btn, ...S.btnGold, ...(!file ? S.btnDis : {}) }} disabled={!file} onClick={handleScan}>
+          Scan Receipt
+        </button>
+      )}
+  
+      {scanErr && <div style={S.err}>⚠️ {scanErr}</div>}
+    </div>
+  )}
+  
+  {/* Text tab */}
+  {tab === 'text' && (
+    <div style={{ animation: 'fadeUp 0.25s ease' }}>
+      <textarea
+        value={pasteText}
+        onChange={e => setPasteText(e.target.value)}
+        placeholder={`Paste receipt text here…\nExample:\nBurger         12.50\nFries           4.00\nTax             1.52\nTip             3.00`}
+        style={{ ...S.input, height: 200, resize: 'none', fontFamily: 'monospace', fontSize: 13, lineHeight: 1.6 }}
+      />
+      {parseErr && <div style={S.err}>⚠️ {parseErr}</div>}
+      <div style={{ height: 10 }} />
+      <button style={{ ...S.btn, ...S.btnGold }} onClick={handleParse}>Parse Receipt</button>
+    </div>
+  )}
+  
+  <div style={{ height: 10 }} />
+  <button style={{ ...S.btn, ...S.btnGhost }} onClick={onSkip}>Skip — Add Items Manually</button>
+  ```
+  
+    </div>
+  );
+
+}
+
+// ── Screen 1: People ──────────────────────────────────────────────────────────
+function ScreenPeople({ people, setPeople, onBack, onNext }) {
+const [name, setName] = useState(’’);
+
+const add = () => {
+const n = name.trim();
+if (!n || people.find(p => p.name.toLowerCase() === n.toLowerCase())) { setName(’’); return; }
+setPeople([…people, { id: ‘p_’ + Date.now(), name: n, color: COLORS[people.length % COLORS.length] }]);
+setName(’’);
+};
+
+const remove = id => {
+setPeople(people.filter(p => p.id !== id));
+};
+
+return (
+<div style={S.screen}>
+<h2 style={S.h2}>Who’s <span style={S.gold}>splitting</span>?</h2>
+<p style={S.sub}>Add everyone at the table</p>
+
+```
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+    {people.map(p => (
+      <div key={p.id} style={{ display: 'flex', alignItems: 'center', background: '#181819', border: '1px solid #2f2f33', borderRadius: 10, padding: '12px 14px', animation: 'fadeUp 0.2s ease' }}>
+        <div style={{ width: 10, height: 10, borderRadius: '50%', background: p.color, marginRight: 10, flexShrink: 0 }} />
+        <span style={{ fontWeight: 500, flex: 1 }}>{p.name}</span>
+        <button onClick={() => remove(p.id)} style={{ background: 'none', border: 'none', color: '#4a4845', cursor: 'pointer', fontSize: 20, padding: '0 4px' }}>×</button>
       </div>
-      <div class="summary-items">
-        ${itemRows || '<div class="summary-item-row"><span style="font-style:italic">No items</span><span>$0.00</span></div>'}
-        ${(taxShare > 0 || tipShare > 0) ? '<div class="summary-divider"></div>' : ''}
-        ${taxShare > 0 ? `<div class="summary-item-row fee"><span>Tax share</span><span>$${taxShare.toFixed(2)}</span></div>` : ''}
-        ${tipShare > 0 ? `<div class="summary-item-row fee"><span>Tip share</span><span>$${tipShare.toFixed(2)}</span></div>` : ''}
-      </div>`;
-    cards.appendChild(card);
-  });
+    ))}
+  </div>
+
+  <div style={{ display: 'flex', gap: 8 }}>
+    <input style={S.input} value={name} onChange={e => setName(e.target.value)}
+      onKeyDown={e => e.key === 'Enter' && add()} placeholder="Add a name…" maxLength={20} />
+    <button style={{ ...S.btn, ...S.btnGold, ...S.btnSm }} onClick={add}>Add</button>
+  </div>
+
+  <div style={S.spacer} />
+  <div style={{ display: 'flex', gap: 8, paddingTop: 12 }}>
+    <button style={{ ...S.btn, ...S.btnGhost, flex: 1 }} onClick={onBack}>Back</button>
+    <button style={{ ...S.btn, ...S.btnGold, flex: 1, ...(people.length < 2 ? S.btnDis : {}) }} disabled={people.length < 2} onClick={onNext}>Next</button>
+  </div>
+</div>
+```
+
+);
 }
 
-function resetAll() {
-  state = { items: [], people: [], tax: 0, tip: 0 };
-  document.getElementById('receiptText').value = '';
-  document.getElementById('parseError').style.display = 'none';
-  document.getElementById('scanError').style.display = 'none';
-  document.getElementById('previewZone').style.display = 'none';
-  document.getElementById('scanBtn').disabled = true;
-  document.getElementById('scanBtn').textContent = 'Scan Receipt';
-  document.getElementById('taxInput').value = '';
-  document.getElementById('tipInput').value = '';
-  document.getElementById('addItemForm').style.display = 'none';
-  switchTab('photo');
-  renderPeople();
-  goTo(0);
+// ── Screen 2: Assign ──────────────────────────────────────────────────────────
+function ScreenAssign({ items, setItems, people, tax, setTax, tip, setTip, onBack, onNext }) {
+const [showAdd, setShowAdd] = useState(false);
+const [newName, setNewName] = useState(’’);
+const [newPrice, setNewPrice] = useState(’’);
+
+const toggleAssign = (itemId, personId) => {
+setItems(items.map(item => {
+if (item.id !== itemId) return item;
+const has = item.assignedTo.includes(personId);
+return { …item, assignedTo: has ? item.assignedTo.filter(x => x !== personId) : […item.assignedTo, personId] };
+}));
+};
+
+const removeItem = id => setItems(items.filter(i => i.id !== id));
+
+const addItem = () => {
+const n = newName.trim();
+const p = parseFloat(newPrice);
+if (!n || isNaN(p) || p <= 0) return;
+setItems([…items, { id: ‘item_’ + Date.now(), name: n, price: p, assignedTo: [] }]);
+setNewName(’’); setNewPrice(’’);
+};
+
+return (
+<div style={S.screen}>
+<h2 style={S.h2}>Assign <span style={S.gold}>dishes</span></h2>
+<p style={S.sub}>Tap names to assign. Multiple people can share.</p>
+
+```
+  {/* Tax / Tip */}
+  <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+    {[['Tax ($)', tax, setTax], ['Tip ($)', tip, setTip]].map(([label, val, set]) => (
+      <div key={label} style={{ flex: 1 }}>
+        <div style={{ fontSize: 11, color: '#8a8680', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 5 }}>{label}</div>
+        <input type="number" style={{ ...S.inputSm, width: '100%' }} placeholder="0.00" min="0" step="0.01"
+          value={val || ''} onChange={e => set(parseFloat(e.target.value) || 0)} />
+      </div>
+    ))}
+  </div>
+
+  {/* Add item toggle */}
+  <button onClick={() => setShowAdd(v => !v)} style={{ background: 'none', border: '1.5px dashed #2f2f33', borderRadius: 10, padding: 10, width: '100%', color: '#4a4845', fontSize: 13, cursor: 'pointer', marginBottom: 10, fontFamily: 'inherit', transition: 'all 0.2s' }}>
+    {showAdd ? '− Hide' : '＋ Add item manually'}
+  </button>
+
+  {showAdd && (
+    <div style={{ background: '#222224', border: '1px solid #2f2f33', borderRadius: 16, padding: 14, marginBottom: 12, animation: 'fadeUp 0.2s ease' }}>
+      <div style={{ fontSize: 11, color: '#8a8680', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>New Item</div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input style={{ ...S.inputSm, flex: 1 }} placeholder="Item name" value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key === 'Enter' && addItem()} />
+        <input type="number" style={{ ...S.inputSm, width: 90, flexShrink: 0 }} placeholder="$0.00" min="0" step="0.01" value={newPrice} onChange={e => setNewPrice(e.target.value)} onKeyDown={e => e.key === 'Enter' && addItem()} />
+        <button style={{ ...S.btn, ...S.btnGold, ...S.btnSm }} onClick={addItem}>Add</button>
+      </div>
+    </div>
+  )}
+
+  {/* Items list */}
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16, overflowY: 'auto', maxHeight: 'calc(100vh - 360px)' }}>
+    {items.length === 0 && <p style={{ color: '#4a4845', fontSize: 14, textAlign: 'center', padding: '20px 0' }}>No items yet — add one above</p>}
+    {items.map(item => (
+      <div key={item.id} style={{ ...S.card, ...(item.assignedTo.length > 0 ? S.cardAssigned : {}) }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+          <span style={{ fontWeight: 600, fontSize: 15, flex: 1, marginRight: 8 }}>{item.name}</span>
+          <span style={{ color: '#e8b84b', fontWeight: 600, fontSize: 16, whiteSpace: 'nowrap' }}>${item.price.toFixed(2)}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, flex: 1 }}>
+            {people.map(p => {
+              const sel = item.assignedTo.includes(p.id);
+              return (
+                <div key={p.id} onClick={() => toggleAssign(item.id, p.id)}
+                  style={{ ...S.chip, ...(sel ? { background: p.color, borderColor: p.color, color: '#111', fontWeight: 600 } : {}) }}>
+                  {p.name}
+                </div>
+              );
+            })}
+          </div>
+          {item.assignedTo.length === 0
+            ? <span style={{ fontSize: 11, color: '#4a4845', fontStyle: 'italic' }}>unassigned</span>
+            : <span style={{ fontSize: 11, color: '#5ce09e' }}>✓ {item.assignedTo.length}</span>}
+          <button onClick={() => removeItem(item.id)} style={{ background: 'none', border: 'none', color: '#4a4845', cursor: 'pointer', fontSize: 16, padding: 2 }}>🗑</button>
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <div style={{ display: 'flex', gap: 8 }}>
+    <button style={{ ...S.btn, ...S.btnGhost, flex: 1 }} onClick={onBack}>Back</button>
+    <button style={{ ...S.btn, ...S.btnGold, flex: 1 }} onClick={onNext}>View Summary</button>
+  </div>
+</div>
+```
+
+);
 }
 
-function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+// ── Screen 3: Summary ─────────────────────────────────────────────────────────
+function ScreenSummary({ items, people, tax, tip, onBack, onReset }) {
+const subtotal = items.reduce((s, i) => s + i.price, 0);
+const grandTotal = subtotal + tax + tip;
+const hasUnassigned = items.some(i => i.assignedTo.length === 0);
+const assignedSubtotal = items.filter(i => i.assignedTo.length > 0).reduce((s, i) => s + i.price / i.assignedTo.length, 0);
+
+return (
+<div style={{ …S.screen, overflowY: ‘auto’ }}>
+<h2 style={S.h2}>The <span style={S.gold}>breakdown</span></h2>
+<p style={S.sub}>Here’s what everyone owes</p>
+
+```
+  <div style={{ background: 'linear-gradient(135deg,#222224,#2a2a2d)', border: '1px solid #2f2f33', borderRadius: 16, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+    <div style={{ color: '#8a8680', fontSize: 14 }}>Total Bill</div>
+    <div style={{ fontFamily: 'Georgia, serif', fontSize: 28, color: '#e8b84b' }}>${grandTotal.toFixed(2)}</div>
+  </div>
+
+  {hasUnassigned && (
+    <div style={{ background: 'rgba(224,92,92,0.1)', border: '1px solid rgba(224,92,92,0.3)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#e05c5c', marginBottom: 12 }}>
+      ⚠️ Some items are unassigned
+    </div>
+  )}
+
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+    {people.map(person => {
+      const myItems = items.filter(i => i.assignedTo.includes(person.id));
+      const itemsTotal = myItems.reduce((s, item) => s + item.price / item.assignedTo.length, 0);
+      const proportion = assignedSubtotal > 0 ? itemsTotal / assignedSubtotal : 0;
+      const taxShare = tax * proportion;
+      const tipShare = tip * proportion;
+      const personTotal = itemsTotal + taxShare + tipShare;
+
+      return (
+        <div key={person.id} style={{ background: '#181819', border: '1.5px solid #2f2f33', borderRadius: 16, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid #2f2f33' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 12, height: 12, borderRadius: '50%', background: person.color, flexShrink: 0 }} />
+              <span style={{ fontWeight: 600, fontSize: 16 }}>{person.name}</span>
+            </div>
+            <span style={{ fontFamily: 'Georgia, serif', fontSize: 22, color: '#e8b84b' }}>${personTotal.toFixed(2)}</span>
+          </div>
+          <div style={{ padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {myItems.length === 0
+              ? <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#8a8680' }}><span style={{ fontStyle: 'italic' }}>No items</span><span>$0.00</span></div>
+              : myItems.map(item => {
+                  const share = item.price / item.assignedTo.length;
+                  return (
+                    <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#8a8680' }}>
+                      <span>{item.name}{item.assignedTo.length > 1 ? ` ÷${item.assignedTo.length}` : ''}</span>
+                      <span>${share.toFixed(2)}</span>
+                    </div>
+                  );
+                })}
+            {(taxShare > 0 || tipShare > 0) && <div style={S.divider} />}
+            {taxShare > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#4a4845' }}><span>Tax share</span><span>${taxShare.toFixed(2)}</span></div>}
+            {tipShare > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#4a4845' }}><span>Tip share</span><span>${tipShare.toFixed(2)}</span></div>}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+
+  <div style={{ display: 'flex', gap: 8 }}>
+    <button style={{ ...S.btn, ...S.btnGhost, flex: 1 }} onClick={onBack}>Edit</button>
+    <button style={{ ...S.btn, ...S.btnGold, flex: 1 }} onClick={onReset}>New Split</button>
+  </div>
+</div>
+```
+
+);
 }
 
-// Init
-renderPeople();
-</script>
+// ── App root ──────────────────────────────────────────────────────────────────
+export default function App() {
+const [screen, setScreen] = useState(0);
+const [items, setItems] = useState([]);
+const [people, setPeople] = useState([]);
+const [tax, setTax] = useState(0);
+const [tip, setTip] = useState(0);
 
-</body>
-</html>
+const applyReceiptData = data => {
+setItems((data.items || []).map((item, i) => ({
+id: ‘item_’ + Date.now() + ‘_’ + i,
+name: item.name,
+price: parseFloat(item.price) || 0,
+assignedTo: []
+})));
+setTax(parseFloat(data.tax) || 0);
+setTip(parseFloat(data.tip) || 0);
+};
+
+const reset = () => {
+setScreen(0); setItems([]); setPeople([]); setTax(0); setTip(0);
+};
+
+const screens = [‘Import’, ‘People’, ‘Assign’, ‘Summary’];
+
+return (
+<div style={S.wrap}>
+<style>{`* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; } @keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}`}</style>
+
+```
+  {/* Header */}
+  <div style={S.header}>
+    <div style={S.logo}>Split<span style={S.logoItal}>Tab</span></div>
+    <div style={S.dots}>
+      {screens.map((_, i) => <Dot key={i} active={i === screen} done={i < screen} />)}
+    </div>
+  </div>
+
+  {/* Screens */}
+  {screen === 0 && (
+    <ScreenImport
+      onDone={data => { applyReceiptData(data); setScreen(1); }}
+      onSkip={() => { setItems([]); setScreen(1); }}
+    />
+  )}
+  {screen === 1 && (
+    <ScreenPeople
+      people={people} setPeople={setPeople}
+      onBack={() => setScreen(0)} onNext={() => setScreen(2)}
+    />
+  )}
+  {screen === 2 && (
+    <ScreenAssign
+      items={items} setItems={setItems}
+      people={people}
+      tax={tax} setTax={setTax}
+      tip={tip} setTip={setTip}
+      onBack={() => setScreen(1)} onNext={() => setScreen(3)}
+    />
+  )}
+  {screen === 3 && (
+    <ScreenSummary
+      items={items} people={people} tax={tax} tip={tip}
+      onBack={() => setScreen(2)} onReset={reset}
+    />
+  )}
+</div>
+```
+
+);
+}
