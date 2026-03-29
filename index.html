@@ -1,559 +1,747 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-<title>Monster Match!</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>SplitTab</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
 <style>
-  :root{
-    --bg1:#0b0f2a; --bg2:#1a0b3a; --neon:#7cf8ff; --neon2:#ff7cf8;
-    --card:#12183b; --card2:#1d2558; --good:#43ffa8; --bad:#ff5c7a;
+  :root {
+    --bg: #0e0e0f;
+    --surface: #181819;
+    --surface2: #222224;
+    --surface3: #2a2a2d;
+    --border: #2f2f33;
+    --gold: #e8b84b;
+    --gold-dim: #b8902e;
+    --gold-glow: rgba(232,184,75,0.15);
+    --text: #f0ede8;
+    --text-dim: #8a8680;
+    --text-muted: #4a4845;
+    --danger: #e05c5c;
+    --green: #5ce09e;
+    --radius: 16px;
+    --radius-sm: 10px;
   }
-  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
-  body{
-    margin:0; font-family: ui-rounded, system-ui, -apple-system, Segoe UI, Roboto, Arial;
-    color:#eaf6ff;
-    background: radial-gradient(1200px 700px at 20% 20%, rgba(124,248,255,.18), transparent 50%),
-                radial-gradient(900px 600px at 80% 30%, rgba(255,124,248,.16), transparent 55%),
-                linear-gradient(160deg,var(--bg1),var(--bg2));
-    overflow-x:hidden;
-  }
-  header{
-    padding:14px 14px 10px;
-    display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
-  }
-  .brand{
-    display:flex; align-items:center; gap:10px;
-  }
-  .logo{
-    width:42px; height:42px; border-radius:14px;
-    background: radial-gradient(circle at 30% 30%, #fff, rgba(255,255,255,.15) 35%, rgba(124,248,255,.25) 55%, rgba(255,124,248,.18) 75%),
-                linear-gradient(135deg, rgba(124,248,255,.35), rgba(255,124,248,.35));
-    box-shadow: 0 0 18px rgba(124,248,255,.25), 0 0 22px rgba(255,124,248,.18);
-    position:relative;
-  }
-  .logo:after{
-    content:"♪"; position:absolute; inset:0; display:grid; place-items:center;
-    font-weight:900; color:#07102b; text-shadow:0 1px 0 rgba(255,255,255,.35);
-    font-size:22px;
-  }
-  h1{margin:0; font-size:18px; letter-spacing:.5px;}
-  .hud{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
-  .pill{
-    padding:8px 10px; border-radius:999px;
-    background: rgba(255,255,255,.06);
-    border: 1px solid rgba(124,248,255,.18);
-    box-shadow: inset 0 0 0 1px rgba(255,124,248,.08);
-    font-size:13px;
-  }
-  .btn{
-    padding:10px 12px; border-radius:14px; border:0; color:#07102b;
-    background: linear-gradient(135deg, var(--neon), var(--neon2));
-    box-shadow: 0 10px 25px rgba(0,0,0,.25), 0 0 22px rgba(124,248,255,.18);
-    font-weight:800; cursor:pointer;
-  }
-  .btn.secondary{
-    background: rgba(255,255,255,.08); color:#eaf6ff; border:1px solid rgba(255,255,255,.12);
-    box-shadow:none;
-  }
-  .wrap{max-width:980px; margin:0 auto; padding:0 14px 20px;}
-  .panel{
-    background: rgba(255,255,255,.04);
-    border: 1px solid rgba(255,255,255,.08);
-    border-radius:18px;
-    padding:12px;
-    box-shadow: 0 12px 30px rgba(0,0,0,.25);
-  }
-  .grid{
-    display:grid; gap:10px; padding:8px;
-    grid-template-columns: repeat(4, minmax(0,1fr));
-  }
-  @media (min-width:560px){ .grid{grid-template-columns: repeat(5, minmax(0,1fr));} }
-  @media (min-width:820px){ .grid{grid-template-columns: repeat(6, minmax(0,1fr));} }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; overflow-x: hidden; }
 
-  .card{
-    position:relative;
-    aspect-ratio: 3 / 4;
-    border-radius:16px;
-    perspective: 900px;
-    user-select:none;
-  }
-  .inner{
-    position:absolute; inset:0;
-    transform-style:preserve-3d;
-    transition: transform 260ms cubic-bezier(.2,.8,.2,1);
-  }
-  .card.flipped .inner{ transform: rotateY(180deg); }
-  .face{
-    position:absolute; inset:0;
-    border-radius:16px;
-    backface-visibility:hidden;
-    display:grid; place-items:center;
-    overflow:hidden;
-  }
-  .front{
-    background: linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,.03));
-    border: 1px solid rgba(124,248,255,.22);
-    box-shadow: inset 0 0 0 1px rgba(255,124,248,.10);
-  }
-  .front:before{
-    content:"";
-    position:absolute; inset:-40%;
-    background: radial-gradient(circle at 30% 30%, rgba(124,248,255,.25), transparent 60%),
-                radial-gradient(circle at 70% 60%, rgba(255,124,248,.20), transparent 55%);
-    transform: rotate(20deg);
-  }
-  .front .q{
-    position:relative;
-    width:70%; height:70%;
-    border-radius:999px;
-    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.30), rgba(255,255,255,.05));
-    display:grid; place-items:center;
-    border: 1px solid rgba(255,255,255,.10);
-  }
-  .front .q span{ font-size:34px; font-weight:900; color:#eaf6ff; text-shadow:0 2px 0 rgba(0,0,0,.25); }
-  .back{
-    transform: rotateY(180deg);
-    background: linear-gradient(160deg, var(--card), var(--card2));
-    border: 1px solid rgba(255,255,255,.10);
-    box-shadow: 0 10px 20px rgba(0,0,0,.18);
-  }
-  .monster{
-    width:86%; height:86%;
-    border-radius:18px;
-    position:relative;
-    display:grid; place-items:center;
-    overflow:hidden;
-  }
-  .monster .emoji{ font-size:36px; z-index:3; filter: drop-shadow(0 6px 0 rgba(0,0,0,.25)); }
-  .monster .name{
-    position:absolute; bottom:8px; left:8px; right:8px;
-    font-size:11px; text-align:center; opacity:.9; z-index:3;
-    letter-spacing:.3px;
-  }
-  .glow{
-    position:absolute; inset:-30%;
-    background: radial-gradient(circle at 30% 30%, rgba(124,248,255,.28), transparent 55%),
-                radial-gradient(circle at 70% 60%, rgba(255,124,248,.22), transparent 55%);
-    transform: rotate(18deg);
-    z-index:1;
-  }
-  .bubbles{
-    position:absolute; inset:0; z-index:2; opacity:.7;
-    background:
-      radial-gradient(circle at 15% 25%, rgba(255,255,255,.18), transparent 30%),
-      radial-gradient(circle at 70% 30%, rgba(255,255,255,.14), transparent 28%),
-      radial-gradient(circle at 40% 70%, rgba(255,255,255,.12), transparent 30%),
-      radial-gradient(circle at 80% 75%, rgba(255,255,255,.10), transparent 28%);
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 9999; pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.35;
   }
 
-  .card.matched{
-    pointer-events:none;
-    animation: pop 420ms cubic-bezier(.2,.9,.2,1);
-  }
-  @keyframes pop{
-    0%{ transform: scale(1); }
-    35%{ transform: scale(1.06); }
-    100%{ transform: scale(1); }
-  }
-  .card.wiggle{ animation: wiggle 300ms ease-in-out; }
-  @keyframes wiggle{
-    0%,100%{ transform: rotate(0deg); }
-    25%{ transform: rotate(-2deg); }
-    50%{ transform: rotate(2deg); }
-    75%{ transform: rotate(-1deg); }
-  }
+  #app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
 
-  .overlay{
-    position:fixed; inset:0; display:none; place-items:center; padding:18px;
-    background: rgba(0,0,0,.45);
+  /* Header */
+  header {
+    padding: 20px 20px 0;
+    display: flex; align-items: center; justify-content: space-between;
   }
-  .overlay.show{ display:grid; }
-  .modal{
-    width:min(560px, 100%);
-    border-radius:22px;
-    padding:16px;
-    background: linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
-    border:1px solid rgba(255,255,255,.12);
-    box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  .logo { font-family: 'DM Serif Display', serif; font-size: 26px; color: var(--gold); letter-spacing: -0.5px; }
+  .logo span { font-style: italic; color: var(--text-dim); font-size: 22px; }
+  .step-indicator { display: flex; gap: 5px; align-items: center; }
+  .step-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: all 0.3s; }
+  .step-dot.active { background: var(--gold); width: 18px; border-radius: 3px; }
+  .step-dot.done { background: var(--gold-dim); }
+
+  /* Screens */
+  .screen { display: none; flex-direction: column; flex: 1; padding: 20px; animation: fadeUp 0.35s ease; }
+  .screen.active { display: flex; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+
+  h2 { font-family: 'DM Serif Display', serif; font-size: 28px; line-height: 1.2; margin-bottom: 6px; }
+  h2 em { font-style: italic; color: var(--gold); }
+  .subtitle { color: var(--text-dim); font-size: 14px; margin-bottom: 24px; }
+
+  /* Upload Zone */
+  .preview-zone {
+    border: 1.5px dashed var(--border); border-radius: var(--radius);
+    background: var(--surface); padding: 20px; text-align: center;
+    margin-bottom: 16px; display: none;
   }
-  .modal h2{ margin:0 0 8px; font-size:18px; }
-  .modal p{ margin:0 0 12px; opacity:.92; line-height:1.35; }
-  .row{ display:flex; gap:10px; flex-wrap:wrap; }
-  .confetti{
-    position:fixed; inset:0; pointer-events:none;
-    overflow:hidden;
+  .preview-zone.has-image { display: block; }
+  .preview-img { max-width: 100%; max-height: 200px; border-radius: var(--radius-sm); object-fit: contain; margin-bottom: 8px; }
+  .preview-filename { color: var(--text-dim); font-size: 12px; }
+
+  .upload-btn-row { display: flex; gap: 10px; margin-bottom: 10px; }
+  .upload-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; padding: 22px 12px;
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: var(--radius); cursor: pointer; transition: all 0.2s;
+    color: var(--text-dim); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+    position: relative; overflow: hidden;
   }
-  .spark{
-    position:absolute; width:8px; height:8px; border-radius:2px;
-    background: white;
-    transform: translate(-50%,-50%);
-    opacity:.9;
+  .upload-btn:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-glow); }
+  .upload-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-btn-icon { font-size: 28px; }
+
+  /* Divider */
+  .or-divider { display: flex; align-items: center; gap: 12px; color: var(--text-muted); font-size: 12px; margin: 8px 0 20px; }
+  .or-divider::before, .or-divider::after { content:''; flex:1; height:1px; background: var(--border); }
+
+  /* Buttons */
+  .btn {
+    width: 100%; padding: 15px; border-radius: var(--radius-sm); border: none;
+    font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; letter-spacing: 0.2px;
   }
+  .btn-gold { background: var(--gold); color: #1a1500; }
+  .btn-gold:hover { background: #f0c958; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(232,184,75,0.25); }
+  .btn-gold:active { transform: translateY(0); }
+  .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--surface3); }
+  .btn-sm { padding: 8px 14px; width: auto; font-size: 13px; border-radius: 8px; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+
+  /* Loading */
+  .loading-state { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 40px 0; }
+  .spinner { width: 40px; height: 40px; border: 2.5px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-state p { color: var(--text-dim); font-size: 14px; }
+
+  /* People */
+  .people-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  .person-tag {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 12px 14px;
+    animation: fadeUp 0.2s ease;
+  }
+  .person-color { width: 10px; height: 10px; border-radius: 50%; margin-right: 10px; flex-shrink: 0; }
+  .person-name { font-weight: 500; flex: 1; }
+  .person-remove { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 18px; padding: 0 4px; transition: color 0.2s; }
+  .person-remove:hover { color: var(--danger); }
+  .add-person-row { display: flex; gap: 8px; }
+  .input-field {
+    flex: 1; background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm); padding: 13px 14px; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 15px; outline: none;
+    transition: border-color 0.2s;
+  }
+  .input-field:focus { border-color: var(--gold); }
+  .input-field::placeholder { color: var(--text-muted); }
+
+  /* Items */
+  .items-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; overflow-y: auto; max-height: calc(100vh - 320px); }
+  .item-card {
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: var(--radius); padding: 14px;
+    transition: border-color 0.2s;
+  }
+  .item-card.fully-assigned { border-color: rgba(92,224,158,0.3); }
+  .item-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .item-name { font-weight: 600; font-size: 15px; flex: 1; margin-right: 8px; }
+  .item-price { color: var(--gold); font-weight: 600; font-size: 16px; white-space: nowrap; }
+  .item-actions-row { display: flex; align-items: center; gap: 6px; justify-content: space-between; }
+  .item-remove-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; padding: 2px; transition: color 0.2s; }
+  .item-remove-btn:hover { color: var(--danger); }
+  .assign-chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+  .chip {
+    padding: 5px 11px; border-radius: 20px; font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s; border: 1.5px solid transparent;
+    background: var(--surface2); color: var(--text-dim);
+  }
+  .chip.selected { color: #111; font-weight: 600; }
+  .chip:hover { opacity: 0.85; }
+  .unassigned-badge { font-size: 11px; color: var(--text-muted); font-style: italic; }
+  .assigned-count { font-size: 11px; color: var(--green); }
+
+  /* Add item manual */
+  .add-item-form { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
+  .add-item-form h4 { font-size: 13px; font-weight: 600; color: var(--text-dim); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .add-item-row { display: flex; gap: 8px; }
+  .input-field-sm { background: var(--surface3); border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s; width: 100%; }
+  .input-field-sm:focus { border-color: var(--gold); }
+  .input-field-sm::placeholder { color: var(--text-muted); }
+  .input-field-sm.price-input { width: 90px; flex-shrink: 0; }
+
+  /* Totals edit */
+  .totals-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .total-field { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+  .total-field label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* Summary */
+  .summary-cards { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+  .summary-card {
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .summary-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+  }
+  .summary-person { display: flex; align-items: center; gap: 10px; }
+  .summary-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .summary-name { font-weight: 600; font-size: 16px; }
+  .summary-total { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--gold); }
+  .summary-items { padding: 10px 16px; display: flex; flex-direction: column; gap: 6px; }
+  .summary-item-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-dim); }
+  .summary-item-row.fee { color: var(--text-muted); }
+  .summary-divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+  /* Grand total */
+  .grand-total-bar {
+    background: linear-gradient(135deg, var(--surface2), var(--surface3));
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 16px;
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
+  }
+  .grand-total-label { color: var(--text-dim); font-size: 14px; }
+  .grand-total-amount { font-family: 'DM Serif Display', serif; font-size: 28px; color: var(--gold); }
+
+  .warning-bar { background: rgba(224,92,92,0.1); border: 1px solid rgba(224,92,92,0.3); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 13px; color: var(--danger); margin-bottom: 12px; }
+
+  /* Bottom nav spacer */
+  .spacer { flex: 1; }
+  .bottom-actions { padding: 12px 0 0; display: flex; gap: 8px; }
+  .bottom-actions .btn { flex: 1; }
+
+  /* Toggle add item */
+  .toggle-add-btn { background: none; border: 1.5px dashed var(--border); border-radius: var(--radius-sm); padding: 10px; width: 100%; color: var(--text-muted); font-size: 13px; cursor: pointer; transition: all 0.2s; margin-bottom: 10px; font-family: 'DM Sans', sans-serif; }
+  .toggle-add-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* Tabs */
+  .tab-btn { flex:1; padding:9px; border:none; border-radius:8px; background:transparent; color:var(--text-muted); font-family:'DM Sans',sans-serif; font-size:13px; font-weight:500; cursor:pointer; transition:all 0.2s; }
+  .tab-btn.active { background:var(--surface3); color:var(--text); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 </style>
+
 </head>
 <body>
-<header class="wrap">
-  <div class="brand">
-    <div class="logo"></div>
-    <div>
-      <h1>Monster Match</h1>
-      <div style="font-size:12px;opacity:.85">Tap two cards to find a matching singing monster!</div>
+<div id="app">
+  <header>
+    <div class="logo">Split<span>Tab</span></div>
+    <div class="step-indicator">
+      <div class="step-dot active" id="dot-0"></div>
+      <div class="step-dot" id="dot-1"></div>
+      <div class="step-dot" id="dot-2"></div>
+      <div class="step-dot" id="dot-3"></div>
+    </div>
+  </header>
+
+  <!-- SCREEN 0: Upload -->
+
+  <div class="screen active" id="screen-0">
+    <h2 style="margin-top:20px">Import your <em>receipt</em></h2>
+    <p class="subtitle">Photo or paste text — your choice</p>
+
+```
+<!-- Tabs -->
+<div style="display:flex;gap:0;background:var(--surface2);border-radius:10px;padding:3px;margin-bottom:16px;">
+  <button class="tab-btn active" id="tabPhoto" onclick="switchTab('photo')">📷 Photo</button>
+  <button class="tab-btn" id="tabText" onclick="switchTab('text')">📋 Paste Text</button>
+</div>
+
+<!-- Photo tab -->
+<div id="panelPhoto">
+  <label class="upload-btn" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:8px;padding:28px 12px;background:var(--surface);border:1.5px dashed var(--border);border-radius:var(--radius);cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden;">
+    <span style="font-size:36px">🖼️</span>
+    <span style="font-weight:600;color:var(--text)">Upload Receipt</span>
+    <span style="font-size:12px;color:var(--text-muted)">Camera or photo library</span>
+    <input type="file" accept="image/*" id="photoInput" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
+  </label>
+  <div id="previewZone" style="display:none;margin-top:12px;text-align:center;">
+    <img id="previewImg" style="max-width:100%;max-height:200px;border-radius:10px;object-fit:contain;">
+    <div id="previewFilename" style="font-size:12px;color:var(--text-muted);margin-top:6px;"></div>
+  </div>
+  <div style="height:12px"></div>
+  <button class="btn btn-gold" id="scanBtn" disabled>Scan Receipt</button>
+  <div id="scanStatus" style="margin-top:10px;font-size:13px;color:var(--text-dim);text-align:center;display:none;"></div>
+  <div id="scanError" style="display:none;margin-top:8px;padding:10px 14px;background:rgba(224,92,92,0.12);border:1px solid rgba(224,92,92,0.3);border-radius:10px;font-size:13px;color:#e05c5c;"></div>
+</div>
+
+<!-- Text tab -->
+<div id="panelText" style="display:none;">
+  <textarea id="receiptText" class="input-field" placeholder="Paste receipt text here…
+```
+
+Example:
+Burger         12.50
+Fries           4.00
+Tax             1.52
+Tip             3.00” style=“height:200px;resize:none;width:100%;font-family:monospace;font-size:13px;line-height:1.6;”></textarea>
+<div id="parseError" style="display:none;margin-top:8px;padding:10px 14px;background:rgba(224,92,92,0.12);border:1px solid rgba(224,92,92,0.3);border-radius:10px;font-size:13px;color:#e05c5c;"></div>
+<div style="height:10px"></div>
+<button class="btn btn-gold" id="parseBtn">Parse Receipt</button>
+</div>
+
+```
+<div style="height:8px"></div>
+<button class="btn btn-ghost" id="skipScanBtn">Skip — Add Items Manually</button>
+```
+
+  </div>
+
+  <!-- SCREEN 1: People -->
+
+  <div class="screen" id="screen-1">
+    <h2 style="margin-top:20px">Who's <em>splitting</em>?</h2>
+    <p class="subtitle">Add everyone at the table</p>
+    <div class="people-list" id="peopleList"></div>
+    <div class="add-person-row">
+      <input type="text" class="input-field" id="personInput" placeholder="Add a name…" maxlength="20">
+      <button class="btn btn-gold btn-sm" id="addPersonBtn">Add</button>
+    </div>
+    <div class="spacer"></div>
+    <div class="bottom-actions">
+      <button class="btn btn-ghost" onclick="goTo(0)">Back</button>
+      <button class="btn btn-gold" id="toPeopleNextBtn" disabled>Next</button>
     </div>
   </div>
-  <div class="hud">
-    <div class="pill">Stage: <b id="stage">1</b></div>
-    <div class="pill">Matches: <b id="matches">0</b>/<span id="totalPairs">0</span></div>
-    <div class="pill">Tries: <b id="tries">0</b></div>
-    <button class="btn secondary" id="muteBtn">Sound: ON</button>
-    <button class="btn" id="newBtn">New Game</button>
-  </div>
-</header>
 
-<div class="wrap">
-  <div class="panel">
-    <div class="grid" id="grid"></div>
+  <!-- SCREEN 2: Assign -->
+
+  <div class="screen" id="screen-2">
+    <h2 style="margin-top:16px">Assign <em>dishes</em></h2>
+    <p class="subtitle">Tap names to assign. Multiple people can share an item.</p>
+
+```
+<div class="totals-row">
+  <div class="total-field">
+    <label>Tax ($)</label>
+    <input type="number" class="input-field-sm" id="taxInput" placeholder="0.00" min="0" step="0.01">
   </div>
-  <div style="margin-top:10px; opacity:.85; font-size:12px">
-    Tip: If your toddler gets stuck, tap <b>New Game</b> to reshuffle.
+  <div class="total-field">
+    <label>Tip ($)</label>
+    <input type="number" class="input-field-sm" id="tipInput" placeholder="0.00" min="0" step="0.01">
   </div>
 </div>
 
-<div class="overlay show" id="overlay">
-  <div class="modal">
-    <h2>Tap “Start” to unlock music</h2>
-    <p>This game makes little musical sounds when monsters match. Start once, then play freely.</p>
-    <div class="row">
-      <button class="btn" id="startBtn">Start</button>
-      <button class="btn secondary" id="startSilentBtn">Start Silent</button>
-    </div>
+<button class="toggle-add-btn" id="toggleAddItem">＋ Add item manually</button>
+<div class="add-item-form" id="addItemForm" style="display:none">
+  <h4>New Item</h4>
+  <div class="add-item-row">
+    <input type="text" class="input-field-sm" id="newItemName" placeholder="Item name">
+    <input type="number" class="input-field-sm price-input" id="newItemPrice" placeholder="$0.00" min="0" step="0.01">
+    <button class="btn btn-gold btn-sm" id="addItemBtn">Add</button>
   </div>
 </div>
 
-<div class="overlay" id="winOverlay">
-  <div class="modal">
-    <h2 id="winTitle">Stage Complete!</h2>
-    <p id="winText">Nice matching! Ready for the next stage?</p>
-    <div class="row">
-      <button class="btn" id="nextStageBtn">Next Stage</button>
-      <button class="btn secondary" id="replayBtn">Replay Stage</button>
+<div class="items-list" id="itemsList"></div>
+
+<div class="bottom-actions">
+  <button class="btn btn-ghost" onclick="goTo(1)">Back</button>
+  <button class="btn btn-gold" id="toSummaryBtn">View Summary</button>
+</div>
+```
+
+  </div>
+
+  <!-- SCREEN 3: Summary -->
+
+  <div class="screen" id="screen-3">
+    <h2 style="margin-top:16px">The <em>breakdown</em></h2>
+    <p class="subtitle">Here's what everyone owes</p>
+    <div class="grand-total-bar">
+      <div>
+        <div class="grand-total-label">Total Bill</div>
+      </div>
+      <div class="grand-total-amount" id="grandTotal">$0.00</div>
+    </div>
+    <div id="warningBar" class="warning-bar" style="display:none">⚠️ Some items are unassigned — check amounts</div>
+    <div class="summary-cards" id="summaryCards"></div>
+    <div class="bottom-actions">
+      <button class="btn btn-ghost" onclick="goTo(2)">Edit</button>
+      <button class="btn btn-gold" onclick="resetAll()">New Split</button>
     </div>
   </div>
 </div>
-
-<div class="confetti" id="confetti"></div>
 
 <script>
-(() => {
-  // --- Monsters (original, "singing monster" vibe) ---
-  const MONSTERS = [
-    { id:"Bloop",   emoji:"🫧", hue:190, note:0 },
-    { id:"Fwoof",   emoji:"🐾", hue:320, note:2 },
-    { id:"Zingy",   emoji:"⚡", hue:55,  note:4 },
-    { id:"Mushie",  emoji:"🍄", hue:120, note:5 },
-    { id:"Glim",    emoji:"✨", hue:285, note:7 },
-    { id:"Puffin",  emoji:"🌬️", hue:200, note:9 },
-    { id:"Bongo",   emoji:"🥁", hue:10,  note:11 },
-    { id:"Chime",   emoji:"🔔", hue:40,  note:12 },
-    { id:"Orbit",   emoji:"🪐", hue:240, note:14 },
-    { id:"Sprout",  emoji:"🌱", hue:100, note:16 },
-    { id:"Coral",   emoji:"🪸", hue:340, note:17 },
-    { id:"Pebble",  emoji:"🪨", hue:25,  note:19 },
-    { id:"Luna",    emoji:"🌙", hue:260, note:21 },
-    { id:"Sunny",   emoji:"🌞", hue:50,  note:23 }
-  ];
+const COLORS = ['#e8b84b','#5ce09e','#5c9be0','#e05ce0','#e0845c','#5ce0d4','#c45ce0','#e05c7a'];
+let state = {
+  storedFile: null,
+  items: [],
+  people: [],
+  tax: 0,
+  tip: 0,
+};
 
-  // --- Difficulty curve by stage ---
-  // More pairs, less "auto-peek" time
-  function stageConfig(stage){
-    const pairs = Math.min(4 + stage, 10);            // stage1=5 pairs (10 cards), stage6=10 pairs (20 cards)
-    const peekMs = Math.max(1200 - stage*120, 450);   // quick preview at start
-    const mismatchDelay = Math.max(650 - stage*40, 420);
-    return { pairs, peekMs, mismatchDelay };
-  }
-
-  // --- State ---
-  let stage = 1, tries = 0, matches = 0, totalPairs = 0;
-  let deck = [];
-  let first = null, second = null;
-  let busy = false;
-  let soundOn = true;
-
-  // --- Audio (WebAudio) ---
-  let ac = null;
-  function ensureAudio(){
-    if(!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
-  }
-  function beep(type, semitone=0, dur=0.12, vol=0.10){
-    if(!soundOn) return;
-    ensureAudio();
-    const t0 = ac.currentTime;
-    const o = ac.createOscillator();
-    const g = ac.createGain();
-    const base = 220; // A3-ish
-    const freq = base * Math.pow(2, semitone/12);
-    o.type = type;
-    o.frequency.setValueAtTime(freq, t0);
-    g.gain.setValueAtTime(0.0001, t0);
-    g.gain.exponentialRampToValueAtTime(vol, t0+0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
-    o.connect(g).connect(ac.destination);
-    o.start(t0);
-    o.stop(t0+dur+0.02);
-  }
-  function sparkle(){
-    beep("triangle", 19, 0.08, 0.07);
-    beep("sine", 24, 0.10, 0.05);
-  }
-  function good(){
-    beep("sine", 12, 0.09, 0.08);
-    beep("triangle", 16, 0.10, 0.07);
-    beep("sine", 19, 0.11, 0.06);
-  }
-  function bad(){
-    beep("sawtooth", -5, 0.09, 0.05);
-    beep("square", -8, 0.10, 0.04);
-  }
-
-  // --- UI refs ---
-  const gridEl = document.getElementById("grid");
-  const stageEl = document.getElementById("stage");
-  const triesEl = document.getElementById("tries");
-  const matchesEl = document.getElementById("matches");
-  const totalPairsEl = document.getElementById("totalPairs");
-  const overlay = document.getElementById("overlay");
-  const winOverlay = document.getElementById("winOverlay");
-  const confettiEl = document.getElementById("confetti");
-
-  document.getElementById("newBtn").addEventListener("click", () => startGame(1, true));
-  document.getElementById("muteBtn").addEventListener("click", () => {
-    soundOn = !soundOn;
-    document.getElementById("muteBtn").textContent = "Sound: " + (soundOn ? "ON" : "OFF");
-    sparkle();
+// ---- Navigation ----
+function goTo(n) {
+  document.querySelectorAll('.screen').forEach((s,i) => s.classList.toggle('active', i===n));
+  document.querySelectorAll('.step-dot').forEach((d,i) => {
+    d.classList.toggle('active', i===n);
+    d.classList.toggle('done', i<n);
   });
+  if (n===2) renderItems();
+  if (n===3) renderSummary();
+}
 
-  document.getElementById("startBtn").addEventListener("click", async () => {
-    ensureAudio();
-    if(ac.state === "suspended") await ac.resume();
-    overlay.classList.remove("show");
-    sparkle();
-    startGame(stage, true);
-  });
-  document.getElementById("startSilentBtn").addEventListener("click", () => {
-    soundOn = false;
-    document.getElementById("muteBtn").textContent = "Sound: OFF";
-    overlay.classList.remove("show");
-    startGame(stage, true);
-  });
+// ---- Screen 0 ----
+function switchTab(tab) {
+  document.getElementById('panelPhoto').style.display = tab === 'photo' ? 'block' : 'none';
+  document.getElementById('panelText').style.display  = tab === 'text'  ? 'block' : 'none';
+  document.getElementById('tabPhoto').classList.toggle('active', tab === 'photo');
+  document.getElementById('tabText').classList.toggle('active', tab === 'text');
+}
 
-  document.getElementById("nextStageBtn").addEventListener("click", () => {
-    winOverlay.classList.remove("show");
-    stage++;
-    startGame(stage, true);
-  });
-  document.getElementById("replayBtn").addEventListener("click", () => {
-    winOverlay.classList.remove("show");
-    startGame(stage, true);
-  });
+// Photo tab
+document.getElementById('photoInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  state.storedFile = file;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    document.getElementById('previewImg').src = ev.target.result;
+    document.getElementById('previewFilename').textContent = file.name;
+    document.getElementById('previewZone').style.display = 'block';
+    document.getElementById('scanBtn').disabled = false;
+  };
+  reader.readAsDataURL(file);
+});
 
-  function shuffle(arr){
-    for(let i=arr.length-1;i>0;i--){
-      const j = Math.floor(Math.random()*(i+1));
-      [arr[i],arr[j]]=[arr[j],arr[i]];
-    }
-    return arr;
-  }
+document.getElementById('scanBtn').addEventListener('click', async () => {
+  const errorDiv = document.getElementById('scanError');
+  const statusDiv = document.getElementById('scanStatus');
+  errorDiv.style.display = 'none';
+  statusDiv.style.display = 'block';
+  statusDiv.textContent = 'Reading receipt…';
+  document.getElementById('scanBtn').disabled = true;
+  document.getElementById('scanBtn').textContent = 'Scanning…';
 
-  function pickMonsters(pairs){
-    const pool = shuffle([...MONSTERS]);
-    return pool.slice(0, pairs);
-  }
-
-  function buildDeck(stage){
-    const cfg = stageConfig(stage);
-    const chosen = pickMonsters(cfg.pairs);
-    const cards = [];
-    chosen.forEach((m) => {
-      cards.push({ ...m, key: m.id + "_a" });
-      cards.push({ ...m, key: m.id + "_b" });
+  try {
+    const file = state.storedFile;
+    const base64 = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = e => res(e.target.result.split(',')[1]);
+      r.onerror = () => rej(new Error('Could not read file'));
+      r.readAsDataURL(file);
     });
-    shuffle(cards);
-    return { cards, cfg };
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: file.type || 'image/jpeg', data: base64 } },
+            { type: 'text', text: `Parse this receipt image. Return ONLY a JSON object, no markdown, no explanation.
+Format: {"items":[{"name":"string","price":number}],"tax":number,"tip":number}
+- Combine each dish with its add-ons/modifiers into one item, summing their prices
+- price/tax/tip are dollar amounts as plain numbers
+- Skip subtotal, total, balance, payment method lines
+- Use 0 for tax or tip if not shown` }
+          ]
+        }]
+      })
+    });
+
+    if (!resp.ok) {
+      const t = await resp.text().catch(() => '');
+      throw new Error(`API error ${resp.status}: ${t.slice(0,100)}`);
+    }
+    const data = await resp.json();
+    const raw = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('').trim();
+    const clean = raw.replace(/^```[a-z]*\n?/i,'').replace(/```$/,'').trim();
+    const parsed = JSON.parse(clean);
+    applyReceiptData(parsed);
+    goTo(1);
+
+  } catch(err) {
+    errorDiv.textContent = '⚠️ ' + err.message;
+    errorDiv.style.display = 'block';
+    document.getElementById('scanBtn').disabled = false;
+    document.getElementById('scanBtn').textContent = 'Scan Receipt';
+  } finally {
+    statusDiv.style.display = 'none';
+  }
+});
+
+// Text tab
+document.getElementById('parseBtn').addEventListener('click', () => {
+  const errorDiv = document.getElementById('parseError');
+  errorDiv.style.display = 'none';
+  const text = document.getElementById('receiptText').value.trim();
+  if (!text) {
+    errorDiv.textContent = '⚠️ Paste some receipt text first.';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  const result = parseReceiptText(text);
+  if (result.items.length === 0) {
+    errorDiv.textContent = '⚠️ No items found. Each line needs a name and a price, e.g. "Burger 12.50".';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  applyReceiptData(result);
+  goTo(1);
+});
+
+document.getElementById('skipScanBtn').addEventListener('click', () => {
+  state.items = [];
+  goTo(1);
+});
+
+function parseReceiptText(raw) {
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  const items = [];
+  let tax = 0, tip = 0;
+
+  const priceRe = /\$?\s*\+?\s*(\d{1,4}[.,]\d{2})\s*$/;
+  const skipRe = /subtotal|sub-total|sub total|total|balance|amount due|change|cash|credit|card|visa|master|amex|discover|thank|welcome|receipt|order|table|server|guest|www\.|\.com/i;
+  const taxRe = /\btax\b|hst|gst|pst|vat/i;
+  const tipRe = /\btip\b|gratuity|service charge/i;
+
+  for (const line of lines) {
+    const m = line.match(priceRe);
+    if (!m) continue;
+    const price = parseFloat(m[1].replace(',', '.'));
+    if (isNaN(price) || price < 0) continue;
+
+    let name = line.slice(0, line.lastIndexOf(m[0])).trim()
+      .replace(/^\d+x?\s*/i, '')   // strip leading qty like "2x" or "2 "
+      .replace(/[\*\|\+]/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
+    if (!name || name.length < 2) continue;
+    if (taxRe.test(name)) { tax = price; continue; }
+    if (tipRe.test(name)) { tip = price; continue; }
+    if (skipRe.test(name)) continue;
+    if (/^\d+$/.test(name)) continue;
+
+    // Modifiers starting with + are add-ons — fold into previous item's price
+    if (/^\+/.test(line) && items.length > 0) {
+      items[items.length - 1].price = parseFloat((items[items.length - 1].price + price).toFixed(2));
+      items[items.length - 1].name += ` +${name.replace(/^\+/, '').trim()}`;
+      continue;
+    }
+
+    items.push({ name: toTitleCase(name), price });
   }
 
-  function cardHTML(card){
-    const bg = `linear-gradient(160deg, hsla(${card.hue},90%,60%,.22), rgba(255,255,255,.02))`;
-    return `
-      <div class="card" data-id="${card.id}" data-key="${card.key}">
-        <div class="inner">
-          <div class="face front">
-            <div class="q"><span>?</span></div>
-          </div>
-          <div class="face back">
-            <div class="monster" style="background:${bg}; border:1px solid hsla(${card.hue},90%,70%,.22)">
-              <div class="glow"></div>
-              <div class="bubbles"></div>
-              <div class="emoji">${card.emoji}</div>
-              <div class="name">${card.id}</div>
-            </div>
-          </div>
-        </div>
+  return { items, tax, tip };
+}
+
+function toTitleCase(s) {
+  return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function applyReceiptData(data) {
+  state.items = (data.items||[]).map((item, i) => ({
+    id: 'item_'+Date.now()+'_'+i,
+    name: item.name,
+    price: parseFloat(item.price)||0,
+    assignedTo: []
+  }));
+  state.tax = parseFloat(data.tax)||0;
+  state.tip = parseFloat(data.tip)||0;
+  document.getElementById('taxInput').value = state.tax > 0 ? state.tax.toFixed(2) : '';
+  document.getElementById('tipInput').value = state.tip > 0 ? state.tip.toFixed(2) : '';
+}
+
+// ---- Screen 1: People ----
+function renderPeople() {
+  const list = document.getElementById('peopleList');
+  list.innerHTML = '';
+  state.people.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'person-tag';
+    div.innerHTML = `<div class="person-color" style="background:${p.color}"></div>
+      <span class="person-name">${escHtml(p.name)}</span>
+      <button class="person-remove" data-id="${p.id}">×</button>`;
+    list.appendChild(div);
+  });
+  list.querySelectorAll('.person-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      state.people = state.people.filter(p => p.id !== id);
+      state.items.forEach(item => { item.assignedTo = item.assignedTo.filter(x => x !== id); });
+      renderPeople();
+      updatePeopleNext();
+    });
+  });
+  updatePeopleNext();
+}
+
+function updatePeopleNext() {
+  document.getElementById('toPeopleNextBtn').disabled = state.people.length < 2;
+}
+
+function addPerson() {
+  const input = document.getElementById('personInput');
+  const name = input.value.trim();
+  if (!name) return;
+  if (state.people.find(p => p.name.toLowerCase() === name.toLowerCase())) { input.value=''; return; }
+  state.people.push({ id: 'p_'+Date.now(), name, color: COLORS[state.people.length % COLORS.length] });
+  input.value = '';
+  renderPeople();
+}
+
+document.getElementById('addPersonBtn').addEventListener('click', addPerson);
+document.getElementById('personInput').addEventListener('keydown', e => { if(e.key==='Enter') addPerson(); });
+document.getElementById('toPeopleNextBtn').addEventListener('click', () => goTo(2));
+
+// ---- Screen 2: Assign ----
+document.getElementById('taxInput').addEventListener('input', e => { state.tax = parseFloat(e.target.value)||0; });
+document.getElementById('tipInput').addEventListener('input', e => { state.tip = parseFloat(e.target.value)||0; });
+
+document.getElementById('toggleAddItem').addEventListener('click', () => {
+  const form = document.getElementById('addItemForm');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+});
+
+document.getElementById('addItemBtn').addEventListener('click', () => {
+  const name = document.getElementById('newItemName').value.trim();
+  const price = parseFloat(document.getElementById('newItemPrice').value)||0;
+  if (!name || price <= 0) return;
+  state.items.push({ id:'item_'+Date.now(), name, price, assignedTo:[] });
+  document.getElementById('newItemName').value = '';
+  document.getElementById('newItemPrice').value = '';
+  renderItems();
+});
+
+function renderItems() {
+  const list = document.getElementById('itemsList');
+  list.innerHTML = '';
+  if (state.items.length === 0) {
+    list.innerHTML = '<p style="color:var(--text-muted);font-size:14px;text-align:center;padding:20px 0">No items yet — add one above</p>';
+    return;
+  }
+  state.items.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'item-card' + (item.assignedTo.length > 0 ? ' fully-assigned' : '');
+    const chips = state.people.map(p => {
+      const sel = item.assignedTo.includes(p.id);
+      return `<div class="chip ${sel?'selected':''}" style="${sel?`background:${p.color};border-color:${p.color}`:''}" data-pid="${p.id}" data-iid="${item.id}">${escHtml(p.name)}</div>`;
+    }).join('');
+    const assignedLabel = item.assignedTo.length === 0
+      ? '<span class="unassigned-badge">unassigned</span>'
+      : `<span class="assigned-count">✓ ${item.assignedTo.length} person${item.assignedTo.length>1?'s':''}</span>`;
+    card.innerHTML = `
+      <div class="item-header">
+        <span class="item-name">${escHtml(item.name)}</span>
+        <span class="item-price">$${item.price.toFixed(2)}</span>
       </div>
-    `;
-  }
-
-  function updateHUD(){
-    stageEl.textContent = stage;
-    triesEl.textContent = tries;
-    matchesEl.textContent = matches;
-    totalPairsEl.textContent = totalPairs;
-  }
-
-  function setGridCols(cardCount){
-    // responsive grid density
-    // no direct colors or themes; just keep it playable
-  }
-
-  function startGame(newStage=1, doPeek=true){
-    stage = newStage;
-    tries = 0; matches = 0; first = null; second = null; busy = false;
-    const { cards, cfg } = buildDeck(stage);
-    deck = cards;
-    totalPairs = deck.length / 2;
-
-    gridEl.innerHTML = deck.map(cardHTML).join("");
-    updateHUD();
-
-    const cardsEls = [...gridEl.querySelectorAll(".card")];
-    cardsEls.forEach(el => {
-      el.addEventListener("click", () => onTap(el, cfg));
-      el.addEventListener("touchstart", (e) => { e.preventDefault(); onTap(el, cfg); }, {passive:false});
-    });
-
-    // Peek preview (helps toddlers). Stage makes it shorter.
-    if(doPeek){
-      busy = true;
-      cardsEls.forEach(el => el.classList.add("flipped"));
-      setTimeout(() => {
-        cardsEls.forEach(el => el.classList.remove("flipped"));
-        busy = false;
-        sparkle();
-      }, cfg.peekMs);
-    }
-  }
-
-  function onTap(el, cfg){
-    if(busy) return;
-    if(el.classList.contains("flipped") || el.classList.contains("matched")) return;
-
-    // flip
-    el.classList.add("flipped");
-    const id = el.dataset.id;
-    const m = MONSTERS.find(x => x.id === id);
-    if(m) beep("sine", m.note, 0.07, 0.06);
-
-    if(!first){
-      first = el;
-      return;
-    }
-    if(first && !second){
-      second = el;
-      tries++;
-      updateHUD();
-      checkMatch(cfg);
-    }
-  }
-
-  function checkMatch(cfg){
-    if(!first || !second) return;
-    busy = true;
-    const same = first.dataset.id === second.dataset.id;
-
-    if(same){
-      // match
-      first.classList.add("matched");
-      second.classList.add("matched");
-      good();
-      matches++;
-      updateHUD();
-      confettiBurst();
-      resetPick();
-
-      // stage done?
-      if(matches >= totalPairs){
-        setTimeout(() => {
-          winOverlay.classList.add("show");
-          document.getElementById("winTitle").textContent = "Stage " + stage + " Complete!";
-          const next = stage + 1;
-          const cfg2 = stageConfig(next);
-          document.getElementById("winText").textContent =
-            `Next stage: ${cfg2.pairs} monster pairs. Ready?`;
-        }, 450);
+      <div class="item-actions-row">
+        <div class="assign-chips">${chips}</div>
+        ${assignedLabel}
+        <button class="item-remove-btn" data-iid="${item.id}">🗑</button>
+      </div>`;
+    list.appendChild(card);
+  });
+  // Chip toggle
+  list.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const iid = chip.dataset.iid, pid = chip.dataset.pid;
+      const item = state.items.find(i => i.id === iid);
+      if (!item) return;
+      if (item.assignedTo.includes(pid)) {
+        item.assignedTo = item.assignedTo.filter(x => x !== pid);
       } else {
-        busy = false;
+        item.assignedTo.push(pid);
       }
-    } else {
-      // mismatch
-      bad();
-      first.classList.add("wiggle");
-      second.classList.add("wiggle");
-      setTimeout(() => {
-        first.classList.remove("flipped","wiggle");
-        second.classList.remove("flipped","wiggle");
-        resetPick();
-        busy = false;
-      }, cfg.mismatchDelay);
-    }
-  }
+      renderItems();
+    });
+  });
+  // Remove item
+  list.querySelectorAll('.item-remove-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.items = state.items.filter(i => i.id !== btn.dataset.iid);
+      renderItems();
+    });
+  });
+}
 
-  function resetPick(){ first = null; second = null; }
+document.getElementById('toSummaryBtn').addEventListener('click', () => goTo(3));
 
-  function confettiBurst(){
-    // light, kid-safe visual sparkle confetti
-    const rect = gridEl.getBoundingClientRect();
-    const cx = rect.left + rect.width * (0.2 + Math.random()*0.6);
-    const cy = rect.top + rect.height * (0.2 + Math.random()*0.6);
+// ---- Screen 3: Summary ----
+function renderSummary() {
+  const subtotal = state.items.reduce((s,i) => s+i.price, 0);
+  const grandTotal = subtotal + state.tax + state.tip;
+  document.getElementById('grandTotal').textContent = '$' + grandTotal.toFixed(2);
 
-    for(let i=0;i<18;i++){
-      const s = document.createElement("div");
-      s.className = "spark";
-      const ang = Math.random()*Math.PI*2;
-      const dist = 40 + Math.random()*90;
-      const x2 = cx + Math.cos(ang)*dist;
-      const y2 = cy + Math.sin(ang)*dist;
-      s.style.left = cx + "px";
-      s.style.top = cy + "px";
-      s.style.transform = "translate(-50%,-50%) rotate("+(Math.random()*90)+"deg)";
-      s.style.opacity = "0.95";
-      s.style.background = `hsl(${Math.floor(Math.random()*360)}, 90%, 70%)`;
-      confettiEl.appendChild(s);
+  // Check unassigned
+  const unassigned = state.items.filter(i => i.assignedTo.length === 0);
+  document.getElementById('warningBar').style.display = unassigned.length > 0 ? 'block' : 'none';
 
-      // animate with JS (simple + reliable)
-      const t0 = performance.now();
-      const dur = 420 + Math.random()*220;
-      const startX = cx, startY = cy;
-      const endX = x2, endY = y2;
-      const spin = (Math.random()<.5?-1:1) * (120 + Math.random()*220);
+  const cards = document.getElementById('summaryCards');
+  cards.innerHTML = '';
 
-      function step(t){
-        const p = Math.min(1, (t - t0)/dur);
-        const ease = 1 - Math.pow(1-p, 3);
-        const x = startX + (endX-startX)*ease;
-        const y = startY + (endY-startY)*ease + (1-p)*(-10);
-        s.style.left = x + "px";
-        s.style.top = y + "px";
-        s.style.transform = `translate(-50%,-50%) rotate(${spin*ease}deg) scale(${1 - p*0.2})`;
-        s.style.opacity = String(0.95 - p*0.95);
-        if(p < 1) requestAnimationFrame(step);
-        else s.remove();
-      }
-      requestAnimationFrame(step);
-    }
-  }
+  state.people.forEach(person => {
+    // Items assigned to this person
+    const myItems = state.items.filter(i => i.assignedTo.includes(person.id));
+    // Each item cost = price / number of people sharing
+    const itemsTotal = myItems.reduce((s, item) => s + item.price / item.assignedTo.length, 0);
 
-  // Start overlay shown until user taps Start (audio policy)
-  // If user doesn’t care about sound, they can start silent.
-})();
+    // Tax & tip proportional to their share of assigned subtotal
+    const assignedSubtotal = state.items
+      .filter(i => i.assignedTo.length > 0)
+      .reduce((s,i) => s + i.price/i.assignedTo.length, 0);
+
+    // This person's proportion of the assigned total
+    // (people who get nothing still may owe tax/tip if all items unassigned — skip that edge case)
+    const proportion = assignedSubtotal > 0 ? itemsTotal / assignedSubtotal : 0;
+    const taxShare = state.tax * proportion;
+    const tipShare = state.tip * proportion;
+    const personTotal = itemsTotal + taxShare + tipShare;
+
+    const card = document.createElement('div');
+    card.className = 'summary-card';
+    const itemRows = myItems.map(item => {
+      const share = item.price / item.assignedTo.length;
+      const label = item.assignedTo.length > 1 ? ` ÷${item.assignedTo.length}` : '';
+      return `<div class="summary-item-row"><span>${escHtml(item.name)}${label}</span><span>$${share.toFixed(2)}</span></div>`;
+    }).join('');
+
+    card.innerHTML = `
+      <div class="summary-card-header">
+        <div class="summary-person">
+          <div class="summary-dot" style="background:${person.color}"></div>
+          <span class="summary-name">${escHtml(person.name)}</span>
+        </div>
+        <div class="summary-total">$${personTotal.toFixed(2)}</div>
+      </div>
+      <div class="summary-items">
+        ${itemRows || '<div class="summary-item-row"><span style="font-style:italic">No items</span><span>$0.00</span></div>'}
+        ${(taxShare > 0 || tipShare > 0) ? '<div class="summary-divider"></div>' : ''}
+        ${taxShare > 0 ? `<div class="summary-item-row fee"><span>Tax share</span><span>$${taxShare.toFixed(2)}</span></div>` : ''}
+        ${tipShare > 0 ? `<div class="summary-item-row fee"><span>Tip share</span><span>$${tipShare.toFixed(2)}</span></div>` : ''}
+      </div>`;
+    cards.appendChild(card);
+  });
+}
+
+function resetAll() {
+  state = { items: [], people: [], tax: 0, tip: 0 };
+  document.getElementById('receiptText').value = '';
+  document.getElementById('parseError').style.display = 'none';
+  document.getElementById('scanError').style.display = 'none';
+  document.getElementById('previewZone').style.display = 'none';
+  document.getElementById('scanBtn').disabled = true;
+  document.getElementById('scanBtn').textContent = 'Scan Receipt';
+  document.getElementById('taxInput').value = '';
+  document.getElementById('tipInput').value = '';
+  document.getElementById('addItemForm').style.display = 'none';
+  switchTab('photo');
+  renderPeople();
+  goTo(0);
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Init
+renderPeople();
 </script>
+
 </body>
 </html>
